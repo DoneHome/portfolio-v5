@@ -1,0 +1,108 @@
+/* 自定义样式补充 */
+
+/* 加载动画 */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+/* 渐变背景 */
+.gradient-bg {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* 卡片悬停效果 */
+.hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* 表格行悬停 */
+table tr {
+    transition: background-color 0.15s ease;
+}
+
+table tr:hover {
+    background-color: rgba(243, 244, 246, 0.5);
+}
+
+/* 按钮点击效果 */
+button:active {
+    transform: scale(0.98);
+}
+
+/* 模态框动画 */
+#trade-modal {
+    transition: opacity 0.2s ease;
+}
+
+#trade-modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#trade-modal > div {
+    transform: scale(0.95);
+    transition: transform 0.2s ease;
+}
+
+#trade-modal:not(.hidden) > div {
+    transform: scale(1);
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* 响应式调整 */
+@media (max-width: 1024px) {
+    .grid-cols-12 {
+        grid-template-columns: 1fr;
+    }
+    
+    .col-span-8, .col-span-4 {
+        grid-column: span 12;
+    }
+    
+    .grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .grid-cols-4 {
+        grid-template-columns: 1fr;
+    }
+    
+    nav .gap-8 {
+        gap: 1rem;
+    }
+    
+    .text-2xl {
+        font-size: 1.5rem;
+    }
+}

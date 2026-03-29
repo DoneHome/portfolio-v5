@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>持仓总览 v5 - 投资笔记</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); }
+        .positive { color: #059669; }
+        .negative { color: #dc2626; }
+        .warning { color: #ea580c; }
+        .neutral { color: #6b7280; }
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            z-index: 100;
+            padding: 10px 14px;
+            background: #1f2937;
+            color: white;
+            font-size: 12px;
+            border-radius: 8px;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-width: 280px;
+            white-space: normal;
+        }
+        .has-tooltip:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            min-width: 140px;
+            z-index: 50;
+        }
+        .menu-container:hover .menu-dropdown {
+            display: block;
+        }
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 顶部导航 -->
+    <nav class="fixed top-0 left-0 right-0 h-12 glass border-b border-gray-200/50 flex items-center justify-between px-6 z-50">
+        <div class="flex-1"></div>
+        <div class="flex items-center gap-8 text-xs font-medium">
+            <a href="#" class="text-gray-900">持仓总览</a>
+            <a href="#" class="text-gray-500 hover:text-gray-900 transition-colors">市场分析</a>
+            <a href="#" class="text-gray-500 hover:text-gray-900 transition-colors">量化策略</a>
+            <a href="#" class="text-gray-500 hover:text-gray-900 transition-colors">技能点亮</a>
+        </div>
+        <div class="flex-1 flex justify-end">
+            <a href="http://localhost:8005/docs" target="_blank" class="text-xs font-medium text-gray-500 hover:text-gray-900 transition-colors">API文档</a>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="pt-16 pb-10 px-6">
+        <div class="max-w-7xl mx-auto">
+            <!-- 顶部仪表盘 -->
+            <div class="mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-4">
+                        <h1 class="text-2xl font-light text-gray-900">持仓总览</h1>
+                        <span id="last-updated" class="text-xs text-gray-400 flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            数据加载中...
+                        </span>
+                        <button id="refresh-btn" class="text-gray-400 hover:text-gray-600" title="刷新数据">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                        </button>
+                        <div id="loading-indicator" class="hidden text-xs text-blue-500 flex items-center gap-1">
+                            <svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                            </svg>
+                            更新中...
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <!-- 录入交易按钮 -->
+                        <button id="add-trade-btn" class="flex items-center gap-1.5 text-xs text-gray-600 bg-white px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50 transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            录入交易
+                        </button>
+                        <!-- 视角切换 -->
+                        <div class="flex items-center gap-2 text-xs text-gray-500 bg-white px-3 py-1.5 rounded-full border border-gray-200">
+                            <div class="relative group">
+                                <span>成本视角</span>
+                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none whitespace-nowrap z-50">
+                                    基于您的买入成本价计算盈亏，显示您相对于成本的投资回报率
+                                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                                </div>
+                            </div>
+                            <button id="perspective-toggle" class="w-8 h-4 bg-blue-500 rounded-full relative transition-colors duration-200">
+                                <span id="toggle-thumb" class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform"></span>
+                            </button>
+                            <div class="relative group">
+                                <span>现价视角</span>
+                                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none whitespace-nowrap z-50">
+                                    基于当前市价与年初价格计算盈亏（YTD），显示股票的市场表现
+                                    <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 4个核心指标 -->
+                <div class="grid grid-cols-4 gap-4">
+                    <!-- 总资产 -->
+                    <div id="total-assets-card" class="bg-white rounded-2xl p-5 shadow-sm">
+                        <p class="text-xs text-gray-500 mb-1">总资产</p>
+                        <p class="text-xl font-medium text-gray-900 loading">¥--</p>
+                        <p class="text-xs text-gray-400 mt-1">含现金 ¥--</p>
+                    </div>
+                    <!-- 总盈亏 -->
+                    <div id="total-pnl-card" class="bg-white rounded-2xl p-5 shadow-sm has-tooltip relative">
+                        <p class="text-xs text-gray-500 mb-1">总盈亏 <span class="text-gray-300">(YTD)</span></p>
+                        <p class="text-xl font-medium loading">¥--</p>
+                        <p class="text-xs loading mt-1">--%</p>
+                        <span class="tooltip">年初资产：¥--</span>
+                    </div>
+                    <!-- 仓位 -->
+                    <div id="position-card" class="bg-white rounded-2xl p-5 shadow-sm has-tooltip relative">
+                        <p class="text-xs text-gray-500 mb-1">仓位</p>
+                        <p class="text-xl font-medium loading">--%</p>
+                        <div class="w-full bg-gray-100 rounded-full h-1.5 mt-2">
+                            <div class="bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 h-1.5 rounded-full relative" style="width: 0%">
+                                <div id="position-indicator" class="absolute top-1/2 -translate-y-1/2 w-2 h-3 bg-gray-800 rounded" style="left: 0%"></div>
+                            </div>
+                        </div>
+                        <span class="tooltip">仓位 = (股票市值 + 期权保证金) / 总资产<br>= (¥-- + ¥--) / ¥--<br>= --%</span>
+                    </div>
+                    <!-- 三年目标进度 -->
+                    <div id="goal-card" class="bg-white rounded-2xl p-5 shadow-sm has-tooltip relative">
+                        <p class="text-xs text-gray-500 mb-1">三年目标进度</p>
+                        <p class="text-xl font-medium text-gray-900 loading">--%</p>
+                        <div class="w-full bg-gray-100 rounded-full h-2 mt-2">
+                            <div id="goal-progress" class="bg-gray-900 h-2 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">目标：¥500万</p>
+                        <span class="tooltip">若保持年化收益 --%<br>预计于 -- 达成</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 三区布局 -->
+            <div class="grid grid-cols-12 gap-6 items-start">
+                <!-- 左侧持仓明细 (8列) -->
+                <div class="col-span-8 space-y-4">
+                    <!-- 权益类 -->
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                        <!-- 表格工具栏 -->
+                        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <h3 class="text-sm font-medium text-gray-900">权益类</h3>
+                                <span id="equity-count" class="text-xs text-gray-400">(--只)</span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <!-- 筛选 -->
+                                <div class="flex items-center gap-1.5">
+                                    <button id="filter-all" class="px-2.5 py-1 text-xs font-medium text-gray-900 bg-gray-200 rounded-full">全部</button>
+                                    <button id="filter-us" class="px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-full transition-colors">美股</button>
+                                    <button id="filter-hk" class="px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-full transition-colors">港股</button>
+                                    <select id="sector-select" class="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-2.5 py-1 focus:outline-none" multiple size="1" onfocus="this.size=6;" onblur="setTimeout(() => this.size=1, 200);" onchange="this.size=1; this.blur();">
+                                        <option value="" disabled selected>行业</option>
+                                        <option value="tech">科技</option>
+                                        <option value="consumer">消费</option>
+                                        <option value="finance">金融</option>
+                                        <option value="healthcare">医疗</option>
+                                        <option value="energy">能源</option>
+                                        <option value="industrial">工业</option>
+                                        <option value="materials">材料</option>
+                                    </select>
+                                </div>
+                                <div class="w-px h-4 bg-gray-200"></div>
+                                <!-- 排序 -->
+                                <select id="sort-select" class="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-2.5 py-1 focus:outline-none">
+                                    <option value="weight">占比</option>
+                                    <option value="pnl">盈亏</option>
+                                    <option value="pnlAmount">盈亏金额</option>
+                                    <option value="today">今日涨跌</option>
+                                </select>
+                            </div>
+                        </div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50/50">
+                                <tr class="text-xs text-gray-500">
+                                    <th class="px-4 py-3 text-left font-medium">标的</th>
+                                    <th class="px-4 py-3 text-left font-medium">市场</th>
+                                    <th class="px-4 py-3 text-right font-medium">持仓量</th>
+                                    <th class="px-4 py-3 text-right font-medium">成本价</th>
+                                    <th class="px-4 py-3 text-right font-medium">现价</th>
+                                    <th class="px-4 py-3 text-right font-medium">占比</th>
+                                    <th class="px-4 py-3 text-right font-medium">盈亏</th>
+                                    <th class="px-4 py-3 text-center font-medium">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="equity-table-body" class="divide-y divide-gray-100">
+                                <!-- 动态加载 -->
+                                <tr>
+                                    <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                                        数据加载中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ETF -->
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <h3 class="text-sm font-medium text-gray-900">ETF</h3>
+                                <span id="etf-count" class="text-xs text-gray-400">(--只)</span>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50/50">
+                                <tr class="text-xs text-gray-500">
+                                    <th class="px-4 py-3 text-left font-medium">标的</th>
+                                    <th class="px-4 py-3 text-left font-medium">市场</th>
+                                    <th class="px-4 py-3 text-right font-medium">持仓量</th>
+                                    <th class="px-4 py-3 text-right font-medium">成本价</th>
+                                    <th class="px-4 py-3 text-right font-medium">现价</th>
+                                    <th class="px-4 py-3 text-right font-medium">占比</th>
+                                    <th class="px-4 py-3 text-right font-medium">盈亏</th>
+                                    <th class="px-4 py-3 text-center font-medium">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="etf-table-body" class="divide-y divide-gray-100">
+                                <!-- 动态加载 -->
+                                <tr>
+                                    <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                                        数据加载中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 现金等价物 -->
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <h3 class="text-sm font-medium text-gray-900">现金等价物</h3>
+                                <span id="cash-equivalent-count" class="text-xs text-gray-400">(--只)</span>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50/50">
+                                <tr class="text-xs text-gray-500">
+                                    <th class="px-4 py-3 text-left font-medium">标的</th>
+                                    <th class="px-4 py-3 text-left font-medium">市场</th>
+                                    <th class="px-4 py-3 text-right font-medium">持仓量</th>
+                                    <th class="px-4 py-3 text-right font-medium">成本价</th>
+                                    <th class="px-4 py-3 text-right font-medium">现价</th>
+                                    <th class="px-4 py-3 text-right font-medium">占比</th>
+                                    <th class="px-4 py-3 text-right font-medium">盈亏</th>
+                                    <th class="px-4 py-3 text-center font-medium">类型</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cash-equivalent-table-body" class="divide-y divide-gray-100">
+                                <!-- 动态加载 -->
+                                <tr>
+                                    <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                                        数据加载中...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 衍生品 -->
+                    <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between cursor-pointer">
+                            <div class="flex items-center gap-3">
+                                <h3 class="text-sm font-medium text-gray-900">衍生品</h3>
+                                <span class="text-xs text-gray-400">(卖Put策略)</span>
+                            </div>
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                        <div class="px-5 py-4 text-sm text-gray-500">
+                            暂无持仓
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧机会与风险 (4列) -->
+                <div class="col-span-4 flex flex-col gap-4">
+                    <!-- 机会 -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm">
+                        <h3 class="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                            <span class="text-lg">📈</span>
+                            机会
+                        </h3>
+                        <div id="opportunities-list" class="space-y-3">
+                            <div class="text-center py-4 text-gray-400">
+                                数据加载中...
+                            </div>
+                        </div>
+                        <button class="w-full mt-4 py-2 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors">
+                            记录加仓
+                        </button>
+                    </div>
+
+                    <!-- 风险 -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm">
+                        <h3 class="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                            <span class="text-lg">⚠️</span>
+                            风险
+                        </h3>
+                        <div id="risks-list" class="space-y-3">
+                            <div class="text-center py-4 text-gray-400">
+                                数据加载中...
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 收租健康度 -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm">
+                        <h3 class="text-sm font-medium text-gray-900 mb-4">收租健康度</h3>
+                        <div class="space-y-3                        <div class="space-y-3">
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-sm text-gray-600">保证金使用率</span>
+                                    <span class="text-sm font-medium text-gray-900">25%</span>
+                                </div>
+                                <div class="w-full bg-gray-100 rounded-full h-1.5">
+                                    <div class="bg-green-500 h-1.5 rounded-full" style="width: 25%"></div>
+                                </div>
+                                <p class="text-xs text-gray-400 mt-1">安全（建议&lt;50%）</p>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">临近到期合约</span>
+                                <span class="text-sm font-medium text-gray-900">0</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">IV分位数</span>
+                                <span class="text-sm font-medium text-gray-900">45% <span class="text-xs text-gray-400">适中</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 现金管理 -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm flex-1">
+                        <h3 class="text-sm font-medium text-gray-900 mb-4">现金管理 <span id="cash-total" class="text-gray-400 font-normal">¥--</span></h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">预留加仓资金</span>
+                                <span class="text-sm font-medium text-gray-900">¥--</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">定投资金</span>
+                                <span class="text-sm font-medium text-gray-900">¥--</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">应急储备</span>
+                                <span class="text-sm font-medium text-gray-900">¥--</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-gray-100">
+                            <div class="flex items-center justify-between text-xs mb-2">
+                                <span class="text-gray-500">本月定投</span>
+                                <span class="text-green-600">已完成 ✓</span>
+                            </div>
+                            <div class="space-y-2">
+                                <div>
+                                    <div class="flex items-center justify-between text-xs mb-1">
+                                        <span class="text-gray-400">中证红利</span>
+                                        <span class="text-gray-600">¥--/¥--</span>
+                                    </div>
+                                    <div class="w-full bg-gray-100 rounded-full h-1.5">
+                                        <div class="bg-blue-500 h-1.5 rounded-full" style="width: 100%"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-0.5">资金已预留</p>
+                                </div>
+                                <div>
+                                    <div class="flex items-center justify-between text-xs mb-1">
+                                        <span class="text-gray-400">纳指100</span>
+                                        <span class="text-gray-600">$--/$--</span>
+                                    </div>
+                                    <div class="w-full bg-gray-100 rounded-full h-1.5">
+                                        <div class="bg-green-500 h-1.5 rounded-full" style="width: 100%"></div>
+                                    </div>
+                                    <p class="text-xs text-gray-400 mt-0.5">资金已预留</p>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-2">下次：2026-04-01</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 错误提示 -->
+    <div id="error-toast" class="fixed bottom-4 right-4 bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-lg shadow-lg hidden z-50 max-w-sm">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span id="error-message">接口请求失败，请重试</span>
+        </div>
+    </div>
+
+    <!-- 录入交易模态框 -->
+    <div id="trade-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-2xl mx-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">录入交易</h3>
+                <button id="close-modal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <form id="trade-form" class="space-y-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">股票代码</label>
+                        <input type="text" id="symbol-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="AAPL, 09992.HK" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">交易方向</label>
+                        <select id="direction-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="buy">买入</option>
+                            <option value="sell">卖出</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">交易日期</label>
+                        <input type="date" id="trade-date-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">数量</label>
+                        <input type="number" id="quantity-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="股数" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">价格</label>
+                        <input type="number" step="0.01" id="price-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="成交价" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">交易货币</label>
+                        <select id="currency-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="USD">美元 (USD)</option>
+                            <option value="HKD">港币 (HKD)</option>
+                            <option value="CNY">人民币 (CNY)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">策略标签</label>
+                        <select id="strategy-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">选择策略</option>
+                            <option value="左侧加仓">左侧加仓</option>
+                            <option value="右侧突破">右侧突破</option>
+                            <option value="定投">定投</option>
+                            <option value="套利">套利</option>
+                            <option value="对冲">对冲</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">情绪标签</label>
+                        <select id="emotion-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">选择情绪</option>
+                            <option value="理性">理性</option>
+                            <option value="贪婪">贪婪</option>
+                            <option value="恐惧">恐惧</option>
+                            <option value="犹豫">犹豫</option>
+                            <option value="兴奋">兴奋</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">止盈价（可选）</label>
+                        <input type="number" step="0.01" id="take-profit-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="止盈价格">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">止损价（可选）</label>
+                        <input type="number" step="0.01" id="stop-loss-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="止损价格">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">交易理由（可选）</label>
+                        <input type="text" id="reason-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="为什么做这笔交易">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                    <textarea id="notes-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" placeholder="其他补充信息（可选）"></textarea>
+                </div>
+                
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 bg-gray-900 text-white py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors">确认录入</button>
+                    <button type="button" id="cancel-modal" class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition-colors">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 脚本 -->
+    <script src="js/api.js?v=4"></script>
+    <script src="js/calculator.js?v=4"></script>
+    <script src="js/renderer.js?v=4"></script>
+    <script src="js/indexeddb.js?v=4"></script>
+    <script src="js/github-backup.js?v=4"></script>
+    <script src="js/main.js?v=4"></script>
+</body>
+</html>
