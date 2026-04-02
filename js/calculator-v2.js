@@ -4,18 +4,19 @@ class PortfolioCalculator {
         // 模拟持仓数据（实际应从本地数据库获取）
         this.positions = [
             // 权益类
-            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 200, costPrice: 22.5, currency: 'HKD' },
-            { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 100, costPrice: 125.8, currency: 'USD' },
-            { symbol: 'AAPL', name: '苹果', market: '美股', type: 'equity', shares: 50, costPrice: 175.0, currency: 'USD' },
-            { symbol: 'MSFT', name: '微软', market: '美股', type: 'equity', shares: 30, costPrice: 420.0, currency: 'USD' },
-            { symbol: 'PDD', name: '拼多多', market: '美股', type: 'equity', shares: 80, costPrice: 145.2, currency: 'USD' },
-            { symbol: 'TSLA', name: '特斯拉', market: '美股', type: 'equity', shares: 25, costPrice: 180.5, currency: 'USD' },
-            { symbol: 'NVDA', name: '英伟达', market: '美股', type: 'equity', shares: 20, costPrice: 950.0, currency: 'USD' },
+            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 200, costPrice: 214.8, currency: 'HKD' },
+            { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 100, costPrice: 379.17, currency: 'USD' },
+            { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 500, costPrice: 64.13, currency: 'HKD' },
+            { symbol: '03690.HK', name: '美团', market: '港股', type: 'equity', shares: 100, costPrice: 109.08, currency: 'HKD' },
             
             // ETF
-            { symbol: 'VOO', name: '标普500ETF', market: '美股', type: 'etf', shares: 15, costPrice: 485.3, currency: 'USD' },
-            { symbol: 'QQQ', name: '纳指100ETF', market: '美股', type: 'etf', shares: 25, costPrice: 445.8, currency: 'USD' },
-            { symbol: 'ARKK', name: 'ARK创新ETF', market: '美股', type: 'etf', shares: 50, costPrice: 52.7, currency: 'USD' }
+            { symbol: 'VOO', name: '标普500ETF', market: '美股', type: 'etf', shares: 15, costPrice: 485.3, currency: 'USD' }
+        ];
+
+        // 现金等价物（货币基金）
+        this.cashEquivalents = [
+            { symbol: '博时美元货币市场基金', name: '博时美元货币市场基金', market: '美股', type: 'cash_equivalent', shares: 55882, nav: 1.0, currency: 'USD' },
+            { symbol: '易方达港元货币市场基金', name: '易方达（香港）港元货币市场基金', market: '港股', type: 'cash_equivalent', shares: 2273, nav: 1.0, currency: 'HKD' }
         ];
 
         // 现金数据（从外部传入，不在此处硬编码）
@@ -158,14 +159,29 @@ class PortfolioCalculator {
         const positionRatio = totalAssetsCNY > 0 ? (totalStockValueCNY / totalAssetsCNY) * 100 : 0;
         const goalProgress = (totalAssetsCNY / (this.threeYearGoal || 5000000)) * 100;
 
-        // 按类型分组并按占比排序
+        // 计算持仓总资产（用于占比计算的分母）
+        const totalHoldingsValueCNY = totalStockValueCNY + totalCashEquivalentValueCNY;
+        
+        // 按类型分组并按占比排序，添加权重字段（分母为持仓总资产）
         const equityStocks = stockCalculations
             .filter(s => s.type === 'equity')
+            .map(s => ({
+                ...s,
+                weight: totalHoldingsValueCNY > 0 ? (s.marketValueCNY / totalHoldingsValueCNY) * 100 : 0
+            }))
             .sort((a, b) => b.marketValueCNY - a.marketValueCNY);
         const etfStocks = stockCalculations
             .filter(s => s.type === 'etf')
+            .map(s => ({
+                ...s,
+                weight: totalHoldingsValueCNY > 0 ? (s.marketValueCNY / totalHoldingsValueCNY) * 100 : 0
+            }))
             .sort((a, b) => b.marketValueCNY - a.marketValueCNY);
         const cashEquivalentStocks = cashEquivalentCalculations
+            .map(s => ({
+                ...s,
+                weight: totalHoldingsValueCNY > 0 ? (s.marketValueCNY / totalHoldingsValueCNY) * 100 : 0
+            }))
             .sort((a, b) => b.marketValueCNY - a.marketValueCNY);
 
         // 计算机会（亏损超过5%）

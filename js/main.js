@@ -1,7 +1,7 @@
 // 主程序逻辑 - 新版（使用 IndexedDB）
 class PortfolioApp {
     constructor() {
-        this.refreshInterval = 30000; // 30秒
+        this.refreshInterval = 60000; // 60秒
         this.refreshTimer = null;
         this.isRefreshing = false;
         this.lastData = null;

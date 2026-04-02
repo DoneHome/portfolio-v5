@@ -154,14 +154,9 @@ class PortfolioRenderer {
         if (!tbody) return;
 
         tbody.innerHTML = '';
-
-        // 计算总资产（股票市值 + 现金）
-        const totalStockValue = stocks.reduce((sum, s) => sum + s.marketValueCNY, 0);
-        const cashValue = window.portfolioCashValue || 0; // 从全局获取现金值
-        const totalAssets = totalStockValue + cashValue;
         
         stocks.forEach(stock => {
-            const weight = totalAssets > 0 ? (stock.marketValueCNY / totalAssets) * 100 : 0;
+            const weight = stock.weight || 0;
             const isHighWeight = weight > 10;
             
             const row = document.createElement('tr');
@@ -223,14 +218,9 @@ class PortfolioRenderer {
         if (!tbody) return;
 
         tbody.innerHTML = '';
-
-        // 计算总资产（股票市值 + 现金）
-        const totalStockValue = stocks.reduce((sum, s) => sum + s.marketValueCNY, 0);
-        const cashValue = window.portfolioCashValue || 0;
-        const totalAssets = totalStockValue + cashValue;
         
         stocks.forEach(stock => {
-            const weight = totalAssets > 0 ? (stock.marketValueCNY / totalAssets) * 100 : 0;
+            const weight = stock.weight || 0;
             
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50/50';
@@ -294,7 +284,7 @@ class PortfolioRenderer {
         if (stocks.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                    <td colspan="5" class="px-4 py-8 text-center text-gray-400">
                         暂无现金等价物
                     </td>
                 </tr>
@@ -302,12 +292,8 @@ class PortfolioRenderer {
             return;
         }
 
-        const totalStockValue = stocks.reduce((sum, s) => sum + s.marketValueCNY, 0);
-        const cashValue = window.portfolioCashValue || 0;
-        const totalAssets = totalStockValue + cashValue;
-
         stocks.forEach(stock => {
-            const weight = totalAssets > 0 ? (stock.marketValueCNY / totalAssets) * 100 : 0;
+            const weight = stock.weight || 0;
 
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50/50';
@@ -322,20 +308,10 @@ class PortfolioRenderer {
                     <span class="text-xs text-gray-500">${stock.market}</span>
                 </td>
                 <td class="px-4 py-3 text-right">
-                    <span class="font-medium text-gray-900">${stock.shares.toLocaleString()}</span>
-                    <span class="text-xs text-gray-400">份</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                    <span class="text-gray-600">${stock.currency === 'USD' ? '$' : 'HK'}${(stock.costPrice || stock.cost_price || 0).toFixed(2)}</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                    <span class="text-gray-900 font-medium">${stock.currency === 'USD' ? '$' : 'HK'}${stock.currentPrice?.toFixed(4) || '1.0000'}</span>
+                    <span class="font-medium text-gray-900">${this.formatCurrency(stock.marketValueCNY)}</span>
                 </td>
                 <td class="px-4 py-3 text-right">
                     <span class="font-medium text-gray-900">${weight.toFixed(1)}%</span>
-                </td>
-                <td class="px-4 py-3 text-right">
-                    <span class="text-gray-400">-</span>
                 </td>
                 <td class="px-4 py-3 text-center">
                     <span class="text-xs text-gray-400">货币基金</span>
