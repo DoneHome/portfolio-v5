@@ -130,12 +130,14 @@ class PortfolioCalculator {
             }
             
             const nav = ce.nav || 1; // 货币基金净值默认为1
-            const marketValueCNY = ce.shares * nav * exchangeRate;
+            const marketValue = ce.shares * nav; // 原始货币市值
+            const marketValueCNY = marketValue * exchangeRate;
             
             return {
                 ...ce,
                 currentPrice: nav,
-                marketValueCNY,
+                marketValue, // 原始货币市值（用于展示）
+                marketValueCNY, // 人民币市值（用于计算）
                 costValueCNY: marketValueCNY, // 货币基金成本等于市值
                 pnlAmountCNY: 0, // 货币基金盈亏为0
                 pnlPercent: 0,

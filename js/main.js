@@ -105,9 +105,9 @@ class PortfolioApp {
         }
 
         // 市场筛选按钮
-        const filterAll = document.querySelector('[data-filter="all"]');
-        const filterUs = document.querySelector('[data-filter="us"]');
-        const filterHk = document.querySelector('[data-filter="hk"]');
+        const filterAll = document.getElementById('filter-all');
+        const filterUs = document.getElementById('filter-us');
+        const filterHk = document.getElementById('filter-hk');
 
         if (filterAll) {
             filterAll.addEventListener('click', () => {
@@ -337,18 +337,18 @@ class PortfolioApp {
 
     // 更新筛选按钮样式
     updateFilterButtons(activeFilter) {
-        const filterAll = document.querySelector('[data-filter="all"]');
-        const filterUs = document.querySelector('[data-filter="us"]');
-        const filterHk = document.querySelector('[data-filter="hk"]');
+        const filterAll = document.getElementById('filter-all');
+        const filterUs = document.getElementById('filter-us');
+        const filterHk = document.getElementById('filter-hk');
 
-        // 重置所有按钮样式
+        // 重置所有按钮样式（浅灰色文字，无背景）
         [filterAll, filterUs, filterHk].forEach(btn => {
             if (btn) {
                 btn.className = 'px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-full transition-colors';
             }
         });
 
-        // 设置激活按钮样式
+        // 设置激活按钮样式（深灰色背景，深色文字）
         let activeBtn;
         switch (activeFilter) {
             case 'all': activeBtn = filterAll; break;

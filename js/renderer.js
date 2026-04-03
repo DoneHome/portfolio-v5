@@ -297,6 +297,13 @@ class PortfolioRenderer {
 
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50/50';
+            // 根据市场显示原始货币金额
+            const marketValueDisplay = stock.currency === 'USD' 
+                ? `$${(stock.marketValue || 0).toFixed(2)}`
+                : stock.currency === 'HKD'
+                ? `HK${(stock.marketValue || 0).toFixed(2)}`
+                : this.formatCurrency(stock.marketValueCNY);
+
             row.innerHTML = `
                 <td class="px-4 py-3">
                     <div>
@@ -308,7 +315,7 @@ class PortfolioRenderer {
                     <span class="text-xs text-gray-500">${stock.market}</span>
                 </td>
                 <td class="px-4 py-3 text-right">
-                    <span class="font-medium text-gray-900">${this.formatCurrency(stock.marketValueCNY)}</span>
+                    <span class="font-medium text-gray-900">${marketValueDisplay}</span>
                 </td>
                 <td class="px-4 py-3 text-right">
                     <span class="font-medium text-gray-900">${weight.toFixed(1)}%</span>
