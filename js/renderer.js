@@ -157,7 +157,7 @@ class PortfolioRenderer {
         
         stocks.forEach(stock => {
             const weight = stock.weight || 0;
-            const isHighWeight = weight > 10;
+            const isHighWeight = weight > 15;
             
             const row = document.createElement('tr');
             row.className = 'hover:bg-gray-50/50';

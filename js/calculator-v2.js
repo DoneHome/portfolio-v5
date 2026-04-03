@@ -196,17 +196,20 @@ class PortfolioCalculator {
                 daysSinceLastBuy: Math.floor(Math.random() * 30) + 1 // 模拟数据
             }));
 
-        // 计算风险（占比超过10%）
+        // 计算风险（占比超过15%，排除现金等价物）
         const risks = [];
         stockCalculations.forEach(stock => {
+            // 排除现金等价物
+            if (stock.type === 'cash_equivalent') return;
+            
             const weight = (stock.marketValueCNY / totalAssetsCNY) * 100;
-            if (weight > 10) {
+            if (weight > 15) {
                 risks.push({
                     type: 'concentration',
                     symbol: stock.symbol,
                     name: stock.name,
                     weight: weight.toFixed(1),
-                    threshold: 10
+                    threshold: 15
                 });
             }
         });
