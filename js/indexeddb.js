@@ -559,7 +559,7 @@ class PortfolioIndexedDB {
             { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 2500, cost_price: 64.13, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // 港股ETF
-            { symbol: '02800.HK', name: '盈富基金', market: '港股', type: 'etf', shares: 1000, cost_price: 29.13, currency: 'HKD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '02800.HK', name: '盈富基金', market: '港股', type: 'etf', shares: 1000, cost_price: 23.89, currency: 'HKD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // 现金等价物
             { symbol: '博时美元货币基金', name: '博时美元货币市场基金', market: '美股', type: 'cash_equivalent', shares: 55882, cost_price: 1, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
