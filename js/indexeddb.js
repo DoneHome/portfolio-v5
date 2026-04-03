@@ -543,7 +543,7 @@ class PortfolioIndexedDB {
         // 初始化持仓数据（从 SQLite 数据库迁移）
         const samplePositions = [
             // 美股权益
-            { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 30, cost_price: 456.16, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 30, cost_price: 379.17, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: 'RKLB', name: 'Rocket Lab', market: '美股', type: 'equity', shares: 1, cost_price: 23.40, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: 'DXYZ', name: 'Destiny Tech100', market: '美股', type: 'equity', shares: 1, cost_price: 69.20, currency: 'USD', sector: 'finance', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: 'PDD', name: '拼多多', market: '美股', type: 'equity', shares: 200, cost_price: 109.77, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
@@ -554,9 +554,9 @@ class PortfolioIndexedDB {
             { symbol: 'QQQ', name: '纳指100ETF', market: '美股', type: 'etf', shares: 15.85, cost_price: 595.29, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // 港股权益
-            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 600, cost_price: 249.02, currency: 'HKD', sector: 'consumer', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 600, cost_price: 214.8, currency: 'HKD', sector: 'consumer', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: '03690.HK', name: '美团-W', market: '港股', type: 'equity', shares: 900, cost_price: 121.97, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 2500, cost_price: 30.53, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 2500, cost_price: 64.13, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // 港股ETF
             { symbol: '02800.HK', name: '盈富基金', market: '港股', type: 'etf', shares: 1000, cost_price: 29.13, currency: 'HKD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
