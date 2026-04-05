@@ -356,18 +356,16 @@ class PortfolioIndexedDB {
     async getCash() {
         const cash = await this._getByKey('cash_management', 1);
         if (!cash) {
-            // 初始化现金数据
-            const defaultCash = {
+            // 返回空现金数据，等待用户录入
+            return {
                 id: 1,
-                usd_balance: 55882,
-                hkd_balance: 2273,
-                reserve_amount: 300000,
-                investment_amount: 200000,
-                emergency_amount: 130000,
+                usd_balance: 0,
+                hkd_balance: 0,
+                reserve_amount: 0,
+                investment_amount: 0,
+                emergency_amount: 0,
                 updated_at: new Date().toISOString()
             };
-            await this._put('cash_management', defaultCash);
-            return defaultCash;
         }
         return cash;
     }
@@ -528,49 +526,38 @@ class PortfolioIndexedDB {
     // ========== 初始化示例数据 ==========
 
     async initSampleData() {
-        console.log('初始化示例数据...');
+        console.log('初始化真实持仓数据...');
         
-        // 检查是否已有数据
-        const positions = await this.getPositions();
-        if (positions.length > 0) {
-            console.log('已有数据，跳过初始化');
-            return;
-        }
-        
-        // 初始化现金数据
-        await this.getCash(); // 这会创建默认现金数据
-        
-        // 初始化持仓数据（从 SQLite 数据库迁移）
-        const samplePositions = [
+        // 初始化真实持仓数据
+        const realPositions = [
             // 美股权益
+            { symbol: 'PDD', name: '拼多多', market: '美股', type: 'equity', shares: 200, cost_price: 109.77, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 30, cost_price: 379.17, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'PLTR', name: 'Palantir', market: '美股', type: 'equity', shares: 1, cost_price: 72.78, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: 'RKLB', name: 'Rocket Lab', market: '美股', type: 'equity', shares: 1, cost_price: 23.40, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: 'DXYZ', name: 'Destiny Tech100', market: '美股', type: 'equity', shares: 1, cost_price: 69.20, currency: 'USD', sector: 'finance', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: 'PDD', name: '拼多多', market: '美股', type: 'equity', shares: 200, cost_price: 109.77, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: 'PLTR', name: 'Palantir', market: '美股', type: 'equity', shares: 1, cost_price: 72.78, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            
-            // 美股ETF
-            { symbol: 'VOO', name: '标普500ETF', market: '美股', type: 'etf', shares: 15.44, cost_price: 603.93, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: 'QQQ', name: '纳指100ETF', market: '美股', type: 'etf', shares: 15.85, cost_price: 595.29, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // 港股权益
-            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 600, cost_price: 214.8, currency: 'HKD', sector: 'consumer', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: '03690.HK', name: '美团-W', market: '港股', type: 'equity', shares: 900, cost_price: 121.97, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 2500, cost_price: 64.13, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 600, cost_price: 214.80, currency: 'HKD', sector: 'consumer', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '03690.HK', name: '美团-W', market: '港股', type: 'equity', shares: 900, cost_price: 109.08, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
-            // 港股ETF
+            // ETF
+            { symbol: 'VOO', name: '标普500ETF', market: '美股', type: 'etf', shares: 16.51, cost_price: 602.74, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'QQQ', name: '纳指100ETF', market: '美股', type: 'etf', shares: 16.94, cost_price: 585.75, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             { symbol: '02800.HK', name: '盈富基金', market: '港股', type: 'etf', shares: 1000, cost_price: 23.89, currency: 'HKD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // 现金等价物
-            { symbol: '博时美元货币基金', name: '博时美元货币市场基金', market: '美股', type: 'cash_equivalent', shares: 55882, cost_price: 1, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: '易方达港元货币基金', name: '易方达（香港）港元货币市场基金', market: '港股', type: 'cash_equivalent', shares: 2273, cost_price: 1, currency: 'HKD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+            { symbol: '博时美元货币基金', name: '博时美元货币市场基金', market: '美股', type: 'cash_equivalent', shares: 51476, cost_price: 1, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '易方达港元货币基金', name: '易方达（香港）港元货币市场基金', market: '港股', type: 'cash_equivalent', shares: 2273, cost_price: 1, currency: 'HKD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '美元现金', name: '美元现金', market: '美股', type: 'cash_equivalent', shares: 3471.46, cost_price: 1, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
         ];
         
-        for (const position of samplePositions) {
+        for (const position of realPositions) {
             await this.addOrUpdatePosition(position);
         }
         
-        console.log('示例数据初始化完成');
+        console.log('真实持仓数据初始化完成');
     }
 }
 

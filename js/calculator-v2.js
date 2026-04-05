@@ -3,20 +3,29 @@ class PortfolioCalculator {
     constructor() {
         // 模拟持仓数据（实际应从本地数据库获取）
         this.positions = [
-            // 权益类
-            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 200, costPrice: 214.8, currency: 'HKD' },
-            { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 100, costPrice: 379.17, currency: 'USD' },
-            { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 500, costPrice: 64.13, currency: 'HKD' },
-            { symbol: '03690.HK', name: '美团', market: '港股', type: 'equity', shares: 100, costPrice: 109.08, currency: 'HKD' },
+            // 美股权益
+            { symbol: 'PDD', name: '拼多多', market: '美股', type: 'equity', shares: 200, costPrice: 109.77, currency: 'USD' },
+            { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 30, costPrice: 379.17, currency: 'USD' },
+            { symbol: 'PLTR', name: 'Palantir', market: '美股', type: 'equity', shares: 1, costPrice: 72.78, currency: 'USD' },
+            { symbol: 'RKLB', name: 'Rocket Lab', market: '美股', type: 'equity', shares: 1, costPrice: 23.40, currency: 'USD' },
+            { symbol: 'DXYZ', name: 'Destiny Tech100', market: '美股', type: 'equity', shares: 1, costPrice: 69.20, currency: 'USD' },
+            
+            // 港股权益
+            { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 2500, costPrice: 64.13, currency: 'HKD' },
+            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 600, costPrice: 214.80, currency: 'HKD' },
+            { symbol: '03690.HK', name: '美团-W', market: '港股', type: 'equity', shares: 900, costPrice: 109.08, currency: 'HKD' },
             
             // ETF
-            { symbol: 'VOO', name: '标普500ETF', market: '美股', type: 'etf', shares: 15, costPrice: 485.3, currency: 'USD' }
+            { symbol: 'VOO', name: '标普500ETF', market: '美股', type: 'etf', shares: 16.51, costPrice: 602.74, currency: 'USD' },
+            { symbol: 'QQQ', name: '纳指100ETF', market: '美股', type: 'etf', shares: 16.94, costPrice: 585.75, currency: 'USD' },
+            { symbol: '02800.HK', name: '盈富基金', market: '港股', type: 'etf', shares: 1000, costPrice: 23.89, currency: 'HKD' }
         ];
 
-        // 现金等价物（货币基金）
+        // 现金等价物（货币基金+现金）
         this.cashEquivalents = [
-            { symbol: '博时美元货币市场基金', name: '博时美元货币市场基金', market: '美股', type: 'cash_equivalent', shares: 55882, nav: 1.0, currency: 'USD' },
-            { symbol: '易方达港元货币市场基金', name: '易方达（香港）港元货币市场基金', market: '港股', type: 'cash_equivalent', shares: 2273, nav: 1.0, currency: 'HKD' }
+            { symbol: '博时美元货币基金', name: '博时美元货币市场基金', market: '美股', type: 'cash_equivalent', shares: 51476, nav: 1.0, currency: 'USD' },
+            { symbol: '易方达港元货币基金', name: '易方达（香港）港元货币市场基金', market: '港股', type: 'cash_equivalent', shares: 2273, nav: 1.0, currency: 'HKD' },
+            { symbol: '美元现金', name: '美元现金', market: '美股', type: 'cash_equivalent', shares: 3471.46, nav: 1.0, currency: 'USD' }
         ];
 
         // 现金数据（从外部传入，不在此处硬编码）
@@ -150,12 +159,8 @@ class PortfolioCalculator {
         const totalStockValueCNY = stockCalculations.reduce((sum, stock) => sum + stock.marketValueCNY, 0);
         const totalCashEquivalentValueCNY = cashEquivalentCalculations.reduce((sum, ce) => sum + ce.marketValueCNY, 0);
         
-        // 计算现金的人民币价值（cash 对象使用 usd_balance 和 hkd_balance）
-        const cashUSDCNY = (this.cash?.usd_balance || 0) * USDCNY;
-        const cashHKDCNY = (this.cash?.hkd_balance || 0) * HKDCNY;
-        const totalCashCNY = cashUSDCNY + cashHKDCNY;
-        
-        const totalAssetsCNY = totalStockValueCNY + totalCashEquivalentValueCNY + totalCashCNY;
+        // 现金等价物（货币基金）已包含现金部分，不再单独计算现金余额
+        const totalAssetsCNY = totalStockValueCNY + totalCashEquivalentValueCNY;
         const totalPnlCNY = totalAssetsCNY - (this.initialAssets || totalAssetsCNY);
         const totalPnlPercent = this.initialAssets ? (totalPnlCNY / this.initialAssets) * 100 : 0;
         const positionRatio = totalAssetsCNY > 0 ? (totalStockValueCNY / totalAssetsCNY) * 100 : 0;
@@ -238,12 +243,11 @@ class PortfolioCalculator {
             initialAssets: this.initialAssets,
             threeYearGoal: this.threeYearGoal,
             
-            // 现金数据（添加 total 字段用于显示）
+            // 现金数据（现金已合并到现金等价物，这里显示为0）
             cash: {
-                ...this.cash,
-                total: totalCashCNY,
-                usd: this.cash?.usd_balance || 0,
-                hkd: this.cash?.hkd_balance || 0
+                total: 0,
+                usd: 0,
+                hkd: 0
             },
             
             // 现金等价物

@@ -40,7 +40,7 @@ class PortfolioApp {
             this.db = IndexedDB;
             await this.db.init();
             
-            // 初始化示例数据（如果数据库为空）
+            // 只在数据库为空时初始化示例数据
             const positions = await this.db.getPositions();
             if (positions.length === 0) {
                 console.log('数据库为空，初始化示例数据...');
@@ -203,10 +203,12 @@ class PortfolioApp {
             
             // 5. 计算所有指标
             const calculator = new PortfolioCalculator();
-            calculator.positions = positions; // 使用数据库中的持仓
+            calculator.positions = positions.filter(p => p.type !== 'cash_equivalent'); // 股票和ETF（排除现金等价物）
             calculator.cashEquivalents = positions.filter(p => p.type === 'cash_equivalent'); // 现金等价物
             calculator.cash = {
                 total: cash.reserve_amount + cash.investment_amount + cash.emergency_amount,
+                usd_balance: cash.usd_balance || 0,
+                hkd_balance: cash.hkd_balance || 0,
                 allocation: {
                     reserve: cash.reserve_amount,
                     investment: cash.investment_amount,
