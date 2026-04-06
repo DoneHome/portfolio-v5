@@ -159,6 +159,14 @@ class PortfolioCalculator {
         const totalStockValueCNY = stockCalculations.reduce((sum, stock) => sum + stock.marketValueCNY, 0);
         const totalCashEquivalentValueCNY = cashEquivalentCalculations.reduce((sum, ce) => sum + ce.marketValueCNY, 0);
         
+        // 计算股票和ETF的市值（用于占比显示）
+        const equityValue = stockCalculations
+            .filter(s => s.type === 'equity')
+            .reduce((sum, s) => sum + s.marketValueCNY, 0);
+        const etfValue = stockCalculations
+            .filter(s => s.type === 'etf')
+            .reduce((sum, s) => sum + s.marketValueCNY, 0);
+        
         // 现金等价物（货币基金）已包含现金部分，不再单独计算现金余额
         const totalAssetsCNY = totalStockValueCNY + totalCashEquivalentValueCNY;
         const totalPnlCNY = totalAssetsCNY - (this.initialAssets || totalAssetsCNY);
@@ -243,7 +251,11 @@ class PortfolioCalculator {
             initialAssets: this.initialAssets,
             threeYearGoal: this.threeYearGoal,
             
-            // 现金数据（现金已合并到现金等价物，这里显示为0）
+            // 资产分类市值（用于占比显示）
+            equityValue,
+            etfValue,
+            
+            // 现金数据（将在 main.js 中被覆盖为真实值）
             cash: {
                 total: 0,
                 usd: 0,

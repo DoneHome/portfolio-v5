@@ -54,14 +54,25 @@ class PortfolioRenderer {
     // 更新顶部仪表盘
     updateDashboard(data) {
         // 总资产
+        const totalAssetsCard = document.getElementById('total-assets-card');
+        if (totalAssetsCard) {
+            // 修改标题
+            const titleEl = totalAssetsCard.querySelector('p.text-xs.text-gray-500');
+            if (titleEl) {
+                titleEl.textContent = '总资产';
+            }
+        }
+        
         const totalAssetsEl = document.querySelector('#total-assets-card .text-xl');
-        const cashNoteEl = document.querySelector('#total-assets-card .text-xs');
+        const cashNoteEl = document.querySelector('#total-assets-card .text-xs.text-gray-400');
         if (totalAssetsEl) {
             totalAssetsEl.textContent = this.formatCurrency(data.totalAssetsCNY);
             totalAssetsEl.classList.remove('loading');
         }
         if (cashNoteEl) {
-            cashNoteEl.textContent = `含现金 ${this.formatCurrency(data.cash.total)}`;
+            // 显示含现金金额
+            const cashValue = data.cash?.total || 0;
+            cashNoteEl.textContent = `含现金 ${this.formatCurrency(cashValue)}`;
         }
 
         // 总盈亏
@@ -88,8 +99,10 @@ class PortfolioRenderer {
 
         // 仓位
         const positionEl = document.querySelector('#position-card .text-xl');
-        const positionIndicator = document.getElementById('position-indicator');
+        const positionProgress = document.querySelector('#position-card .bg-gradient-to-r');
         const positionTooltip = document.querySelector('#position-card .tooltip');
+        const positionCard = document.getElementById('position-card');
+        
         if (positionEl) {
             positionEl.textContent = `${data.positionRatio.toFixed(1)}%`;
             positionEl.classList.remove('loading');
@@ -98,14 +111,43 @@ class PortfolioRenderer {
                 data.positionRatio > 80 ? 'neutral' : 'positive'
             }`;
         }
-        if (positionIndicator) {
-            positionIndicator.style.left = `${data.positionRatio}%`;
+        if (positionProgress) {
+            positionProgress.style.width = `${Math.min(data.positionRatio, 100)}%`;
+        }
+        
+        // 显示仓位分布
+        if (positionCard) {
+            const distributionEl = positionCard.querySelector('.text-xs.text-gray-400');
+            if (distributionEl) {
+                const stockValue = data.equityValue || 0;
+                const etfValue = data.etfValue || 0;
+                const cashValue = data.cash?.total || 0;
+                const total = data.totalAssetsCNY || 1;
+                
+                const stockPercent = total > 0 ? (stockValue / total * 100) : 0;
+                const etfPercent = total > 0 ? (etfValue / total * 100) : 0;
+                const cashPercent = total > 0 ? (cashValue / total * 100) : 0;
+                
+                distributionEl.textContent = `股票${stockPercent.toFixed(0)}% ETF${etfPercent.toFixed(0)}% 现金${cashPercent.toFixed(0)}%`;
+            }
         }
         if (positionTooltip) {
-            positionTooltip.innerHTML = `仓位 = (股票市值 + 期权保证金) / 总资产<br>= (${this.formatCurrency(data.totalAssetsCNY - data.cash.total)} + ¥0) / ${this.formatCurrency(data.totalAssetsCNY)}<br>= ${data.positionRatio.toFixed(1)}%`;
+            // 正确的计算：仓位 = 股票市值 / (股票市值 + 现金)
+            const stockValue = data.totalAssetsCNY - data.cash.total;
+            const totalForPosition = stockValue + data.cash.total;
+            const calculatedRatio = totalForPosition > 0 ? (stockValue / totalForPosition) * 100 : 0;
+            
+            positionTooltip.innerHTML = `仓位 = 股票市值 / (股票市值 + 现金)<br>= ${this.formatCurrency(stockValue)} / ${this.formatCurrency(totalForPosition)}<br>= ${calculatedRatio.toFixed(1)}%`;
         }
 
-        // 三年目标进度
+        // 目标进度
+        const goalCard = document.getElementById('goal-card');
+        if (goalCard) {
+            const titleEl = goalCard.querySelector('p.text-xs.text-gray-500');
+            if (titleEl) {
+                titleEl.textContent = '目标进度';
+            }
+        }
         const goalEl = document.querySelector('#goal-card .text-xl');
         const goalProgress = document.getElementById('goal-progress');
         const goalTooltip = document.querySelector('#goal-card .tooltip');
@@ -119,6 +161,18 @@ class PortfolioRenderer {
         if (goalTooltip) {
             const estimatedDate = this._estimateGoalDate(data.goalProgress);
             goalTooltip.innerHTML = `若保持年化收益 ${data.totalPnlPercent.toFixed(1)}%<br>预计于 ${estimatedDate} 达成`;
+        }
+
+        // 保证金使用率（无期权持仓时为0%）
+        const marginValueEl = document.querySelector('#margin-usage-card .text-sm.font-medium');
+        const marginProgress = document.getElementById('margin-progress');
+        if (marginValueEl) {
+            marginValueEl.textContent = '0%';
+            marginValueEl.classList.remove('loading');
+            marginValueEl.className = 'text-sm font-medium positive';
+        }
+        if (marginProgress) {
+            marginProgress.style.width = '0%';
         }
 
         // 更新计数
@@ -481,6 +535,54 @@ class PortfolioRenderer {
             }
         } catch (error) {
             console.warn('获取当前价格失败:', error);
+        }
+    }
+
+    // 初始化折叠功能
+    initCollapse() {
+        // ETF 折叠
+        const etfToggle = document.querySelector('.etf-toggle');
+        const etfContent = document.querySelector('.etf-content');
+        const etfArrow = document.querySelector('.etf-arrow');
+        
+        if (etfToggle && etfContent) {
+            etfToggle.addEventListener('click', () => {
+                const isHidden = etfContent.style.display === 'none';
+                etfContent.style.display = isHidden ? 'block' : 'none';
+                if (etfArrow) {
+                    etfArrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+                }
+            });
+        }
+        
+        // 现金等价物折叠
+        const cashToggle = document.querySelector('.cash-toggle');
+        const cashContent = document.querySelector('.cash-content');
+        const cashArrow = document.querySelector('.cash-arrow');
+        
+        if (cashToggle && cashContent) {
+            cashToggle.addEventListener('click', () => {
+                const isHidden = cashContent.style.display === 'none';
+                cashContent.style.display = isHidden ? 'block' : 'none';
+                if (cashArrow) {
+                    cashArrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+                }
+            });
+        }
+        
+        // 衍生品折叠
+        const derivativeToggle = document.querySelector('.derivative-toggle');
+        const derivativeContent = document.querySelector('.derivative-content');
+        const derivativeArrow = document.querySelector('.derivative-arrow');
+        
+        if (derivativeToggle && derivativeContent) {
+            derivativeToggle.addEventListener('click', () => {
+                const isHidden = derivativeContent.style.display === 'none';
+                derivativeContent.style.display = isHidden ? 'block' : 'none';
+                if (derivativeArrow) {
+                    derivativeArrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(180deg)';
+                }
+            });
         }
     }
 }

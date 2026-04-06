@@ -31,6 +31,9 @@ class PortfolioApp {
         // 初始化 GitHub 备份（需要用户配置）
         this.initBackupService();
         
+        // 初始化折叠功能
+        Renderer.initCollapse();
+        
         console.log('Portfolio v5 前端初始化完成');
     }
 
@@ -219,10 +222,34 @@ class PortfolioApp {
             calculator.threeYearGoal = 5000000; // 从数据库获取或使用默认值
             
             const calculatedData = calculator.calculateAll(batchData.stocks, forexRates);
-            this.lastData = calculatedData;
+            
+            // 合并现金数据（从数据库获取的现金 + 现金等价物计算值）
+            const cashFromDB = {
+                total: cash.reserve_amount + cash.investment_amount + cash.emergency_amount,
+                usd_balance: cash.usd_balance || 0,
+                hkd_balance: cash.hkd_balance || 0,
+                allocation: {
+                    reserve: cash.reserve_amount,
+                    investment: cash.investment_amount,
+                    emergency: cash.emergency_amount
+                }
+            };
+            
+            // 总资产 = 股票市值 + ETF市值 + 现金等价物市值 + 数据库现金
+            const totalCash = cashFromDB.total + calculatedData.totalCashEquivalentValueCNY;
+            
+            this.lastData = {
+                ...calculatedData,
+                cash: {
+                    total: totalCash,
+                    usd_balance: cashFromDB.usd_balance,
+                    hkd_balance: cashFromDB.hkd_balance,
+                    allocation: cashFromDB.allocation
+                }
+            };
 
             // 6. 渲染页面
-            this.renderData(calculatedData);
+            this.renderData(this.lastData);
 
             // 7. 清除错误提示（如果有）
             const errorToast = document.getElementById('error-toast');
