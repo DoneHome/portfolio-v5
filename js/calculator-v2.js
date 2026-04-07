@@ -57,36 +57,21 @@ class PortfolioCalculator {
             const costPrice = position.cost_price || position.costPrice || 0;
             const shares = position.shares || 0;
             
-            // 如果股票数据获取失败，使用成本价作为当前价（容错处理）
+            // 如果股票数据获取失败，标记为数据缺失，不显示价格
             if (!stockData) {
-                console.warn(`股票 ${position.symbol} 数据获取失败，使用成本价计算`);
-                const currentPrice = costPrice; // 使用成本价作为当前价
+                console.warn(`股票 ${position.symbol} 数据获取失败`);
                 const currency = position.currency;
-
-                // 汇率转换
-                let exchangeRate = 1;
-                if (currency === 'USD') {
-                    exchangeRate = USDCNY;
-                } else if (currency === 'HKD') {
-                    exchangeRate = HKDCNY;
-                }
-
-                // 计算人民币市值
-                const marketValueCNY = shares * currentPrice * exchangeRate;
-                const costValueCNY = shares * costPrice * exchangeRate;
-                const pnlAmountCNY = 0; // 盈亏为0
-                const pnlPercent = 0; // 盈亏百分比为0
 
                 return {
                     ...position,
-                    currentPrice,
+                    currentPrice: null, // 不显示价格
                     currency,
-                    marketValueCNY,
-                    costValueCNY,
-                    pnlAmountCNY,
-                    pnlPercent,
-                    todayChange: 0,
-                    exchangeRate,
+                    marketValueCNY: null,
+                    costValueCNY: null,
+                    pnlAmountCNY: null,
+                    pnlPercent: null,
+                    todayChange: null,
+                    exchangeRate: null,
                     dataMissing: true // 标记数据缺失
                 };
             }
@@ -242,92 +227,28 @@ class PortfolioCalculator {
         }
 
         return {
-            // 核心指标
             totalAssetsCNY,
+            totalStockValueCNY,
+            totalCashEquivalentValueCNY,
             totalPnlCNY,
             totalPnlPercent,
             positionRatio,
             goalProgress,
-            initialAssets: this.initialAssets,
-            threeYearGoal: this.threeYearGoal,
-            
-            // 资产分类市值（用于占比显示）
             equityValue,
             etfValue,
-            
-            // 现金数据（将在 main.js 中被覆盖为真实值）
-            cash: {
-                total: 0,
-                usd: 0,
-                hkd: 0
-            },
-            
-            // 现金等价物
-            cashEquivalents: cashEquivalentStocks,
-            totalCashEquivalentValueCNY,
-            
-            // 股票数据
-            stocks: stockCalculations,
             equityStocks,
             etfStocks,
-            
-            // 机会与风险
+            cashEquivalentStocks,
             opportunities,
             risks,
-            
-            // 汇率
-            forexRates: {
-                USDCNY,
-                HKDUSD,
-                HKDCNY
-            },
-            
-            // 统计
             equityCount: equityStocks.length,
             etfCount: etfStocks.length,
-            cashEquivalentCount: cashEquivalentStocks.length,
-            totalStockCount: stockCalculations.length
+            cashEquivalentCount: cashEquivalentStocks.length
         };
-    }
-
-    // 获取所有股票代码
-    getAllSymbols() {
-        return this.positions.map(p => p.symbol);
-    }
-
-    // 添加新交易
-    addTrade(symbol, direction, quantity, price) {
-        // 查找现有持仓
-        const existingPosition = this.positions.find(p => p.symbol === symbol);
-        
-        if (existingPosition) {
-            if (direction === 'buy') {
-                // 买入：更新平均成本
-                const totalShares = existingPosition.shares + quantity;
-                const totalCost = existingPosition.shares * existingPosition.costPrice + quantity * price;
-                existingPosition.costPrice = totalCost / totalShares;
-                existingPosition.shares = totalShares;
-            } else {
-                // 卖出：减少持仓
-                existingPosition.shares = Math.max(0, existingPosition.shares - quantity);
-            }
-        } else if (direction === 'buy') {
-            // 新持仓
-            this.positions.push({
-                symbol,
-                name: symbol, // 实际应从API获取名称
-                market: symbol.includes('.HK') ? '港股' : '美股',
-                type: 'equity',
-                shares: quantity,
-                costPrice: price,
-                currency: symbol.includes('.HK') ? 'HKD' : 'USD'
-            });
-        }
-        
-        // 实际应保存到本地数据库
-        console.log('交易已记录:', { symbol, direction, quantity, price });
     }
 }
 
-// 全局计算器实例
-const Calculator = new PortfolioCalculator();
+// 导出
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = PortfolioCalculator;
+}
