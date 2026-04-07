@@ -350,7 +350,7 @@ class PortfolioApp {
         
         // 渲染 ETF 和现金等价物（不受市场筛选影响）
         Renderer.renderETFTable(this.lastData.etfStocks || []);
-        Renderer.renderCashEquivalentTable(this.lastData.cashEquivalents || []);
+        Renderer.renderCashEquivalentTable(this.lastData.cashEquivalentStocks || []);
     }
 
     // 更新筛选按钮样式
