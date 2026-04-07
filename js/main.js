@@ -86,19 +86,6 @@ class PortfolioApp {
             addTradeBtn.addEventListener('click', () => this.openTradeModal());
         }
 
-        // 视角切换
-        const perspectiveToggle = document.getElementById('perspective-toggle');
-        if (perspectiveToggle) {
-            perspectiveToggle.addEventListener('click', () => {
-                const isCost = Renderer.togglePerspective();
-                console.log('切换视角:', isCost ? '成本视角' : '现价视角');
-                // 重新渲染数据
-                if (this.lastData) {
-                    this.renderData(this.lastData);
-                }
-            });
-        }
-
         // 排序选择
         const sortSelect = document.getElementById('sort-select');
         if (sortSelect) {

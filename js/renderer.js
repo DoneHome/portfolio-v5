@@ -1,32 +1,8 @@
 // 页面渲染逻辑
 class PortfolioRenderer {
     constructor() {
-        this.isCostPerspective = true; // 默认成本视角
-    }
-
-    // 切换视角
-    togglePerspective() {
-        this.isCostPerspective = !this.isCostPerspective;
-        const thumb = document.getElementById('toggle-thumb');
-        if (this.isCostPerspective) {
-            thumb.style.transform = 'translateX(0)';
-        } else {
-            thumb.style.transform = 'translateX(16px)';
-        }
-        
-        // 更新切换按钮颜色
-        const toggleBtn = document.getElementById('perspective-toggle');
-        if (toggleBtn) {
-            if (this.isCostPerspective) {
-                toggleBtn.classList.remove('bg-green-500');
-                toggleBtn.classList.add('bg-blue-500');
-            } else {
-                toggleBtn.classList.remove('bg-blue-500');
-                toggleBtn.classList.add('bg-green-500');
-            }
-        }
-        
-        return this.isCostPerspective;
+        // 固定使用成本视角
+        this.isCostPerspective = true;
     }
 
     // 格式化货币
