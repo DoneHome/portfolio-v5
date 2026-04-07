@@ -53,7 +53,7 @@ class PortfolioRenderer {
 
         // 年化收益
         const annualReturnEl = document.querySelector('#annual-return-card .text-xl');
-        const annualReturnAmountEl = document.querySelector('#annual-return-card .text-xs');
+        const annualReturnAmountEl = document.querySelector('#annual-return-card .text-xs.text-gray-400');
         const annualReturnTooltip = document.querySelector('#annual-return-card .tooltip');
         
         // 固定年初资产
