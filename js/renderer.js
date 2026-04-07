@@ -51,26 +51,30 @@ class PortfolioRenderer {
             cashNoteEl.textContent = `含现金 ${this.formatCurrency(cashValue)}`;
         }
 
-        // 总盈亏
-        const totalPnlEl = document.querySelector('#total-pnl-card .text-xl');
-        const totalPnlPercentEl = document.querySelector('#total-pnl-card .text-xs');
-        const totalPnlTooltip = document.querySelector('#total-pnl-card .tooltip');
-        if (totalPnlEl) {
-            totalPnlEl.textContent = this.formatCurrency(data.totalPnlCNY);
-            totalPnlEl.classList.remove('loading');
-            totalPnlEl.className = `text-xl font-medium ${data.totalPnlCNY >= 0 ? 'positive' : 'negative'}`;
+        // 年化收益
+        const annualReturnEl = document.querySelector('#annual-return-card .text-xl');
+        const annualReturnAmountEl = document.querySelector('#annual-return-card .text-xs');
+        const annualReturnTooltip = document.querySelector('#annual-return-card .tooltip');
+        
+        // 固定年初资产
+        const INITIAL_ASSETS = 1082990;
+        
+        // 计算年化收益（简化计算：当前总盈亏 / 年初资产）
+        const totalPnl = data.totalAssetsCNY - INITIAL_ASSETS;
+        const annualReturnPercent = INITIAL_ASSETS > 0 ? (totalPnl / INITIAL_ASSETS) * 100 : 0;
+        
+        if (annualReturnEl) {
+            annualReturnEl.textContent = this.formatPercent(annualReturnPercent);
+            annualReturnEl.classList.remove('loading');
+            annualReturnEl.className = `text-xl font-medium ${annualReturnPercent >= 0 ? 'positive' : 'negative'}`;
         }
-        if (totalPnlPercentEl) {
-            totalPnlPercentEl.textContent = this.formatPercent(data.totalPnlPercent);
-            totalPnlPercentEl.classList.remove('loading');
-            totalPnlPercentEl.className = `text-xs ${data.totalPnlPercent >= 0 ? 'positive' : 'negative'} mt-1`;
+        if (annualReturnAmountEl) {
+            annualReturnAmountEl.textContent = this.formatCurrency(totalPnl);
+            annualReturnAmountEl.classList.remove('loading');
+            annualReturnAmountEl.className = `text-xs ${totalPnl >= 0 ? 'positive' : 'negative'} mt-1`;
         }
-        if (totalPnlTooltip) {
-            if (data.initialAssets && data.initialAssets > 0) {
-                totalPnlTooltip.textContent = `年初资产：${this.formatCurrency(data.initialAssets)}`;
-            } else {
-                totalPnlTooltip.textContent = '年初资产：待设置';
-            }
+        if (annualReturnTooltip) {
+            annualReturnTooltip.textContent = `年初资产：${this.formatCurrency(INITIAL_ASSETS)}`;
         }
 
         // 仓位

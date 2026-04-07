@@ -206,7 +206,7 @@ class PortfolioApp {
                     emergency: cash.emergency_amount
                 }
             };
-            calculator.initialAssets = 4442000; // 从数据库获取或使用默认值
+            calculator.initialAssets = 1082990; // 2026年年初资产
             calculator.threeYearGoal = 5000000; // 从数据库获取或使用默认值
             
             const calculatedData = calculator.calculateAll(batchData.stocks, forexRates);
