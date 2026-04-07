@@ -69,9 +69,8 @@ class PortfolioRenderer {
             annualReturnEl.className = `text-xl font-medium ${annualReturnPercent >= 0 ? 'positive' : 'negative'}`;
         }
         if (annualReturnAmountEl) {
-            annualReturnAmountEl.textContent = this.formatCurrency(totalPnl);
+            annualReturnAmountEl.textContent = `盈亏 ${this.formatCurrency(totalPnl)}`;
             annualReturnAmountEl.classList.remove('loading');
-            annualReturnAmountEl.className = `text-xs ${totalPnl >= 0 ? 'positive' : 'negative'} mt-1`;
         }
         if (annualReturnTooltip) {
             annualReturnTooltip.textContent = `年初资产：${this.formatCurrency(INITIAL_ASSETS)}`;
