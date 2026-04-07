@@ -306,12 +306,14 @@ class PortfolioRenderer {
 
     // 渲染现金等价物表格
     renderCashEquivalentTable(stocks) {
+        console.log('DEBUG: renderCashEquivalentTable called with:', stocks);
         const tbody = document.getElementById('cash-equivalent-table-body');
+        console.log('DEBUG: tbody element:', tbody);
         if (!tbody) return;
 
         tbody.innerHTML = '';
 
-        if (stocks.length === 0) {
+        if (!stocks || stocks.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="5" class="px-4 py-8 text-center text-gray-400">

@@ -195,6 +195,7 @@ class PortfolioApp {
             const calculator = new PortfolioCalculator();
             calculator.positions = positions.filter(p => p.type !== 'cash_equivalent'); // 股票和ETF（排除现金等价物）
             calculator.cashEquivalents = positions.filter(p => p.type === 'cash_equivalent'); // 现金等价物
+            console.log('DEBUG: Cash equivalents from DB:', calculator.cashEquivalents);
             calculator.cash = {
                 total: cash.reserve_amount + cash.investment_amount + cash.emergency_amount,
                 usd_balance: cash.usd_balance || 0,
@@ -209,6 +210,7 @@ class PortfolioApp {
             calculator.threeYearGoal = 5000000; // 从数据库获取或使用默认值
             
             const calculatedData = calculator.calculateAll(batchData.stocks, forexRates);
+            console.log('DEBUG: Calculated cashEquivalents:', calculatedData.cashEquivalentStocks);
             
             // 合并现金数据（从数据库获取的现金 + 现金等价物计算值）
             const cashFromDB = {
