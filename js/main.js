@@ -501,16 +501,55 @@ class PortfolioApp {
                     const shouldHide = type !== 'equity' && type !== 'etf';
                     equityEtfFields.classList.toggle('hidden', shouldHide);
                     console.log('equityEtfFields 隐藏状态:', shouldHide);
+                    
+                    // 动态管理required属性，避免浏览器验证隐藏字段
+                    const requiredFields = equityEtfFields.querySelectorAll('[required]');
+                    requiredFields.forEach(field => {
+                        if (shouldHide) {
+                            field.removeAttribute('required');
+                            field.setAttribute('data-was-required', 'true');
+                        } else {
+                            if (field.getAttribute('data-was-required') === 'true') {
+                                field.setAttribute('required', '');
+                            }
+                        }
+                    });
                 }
                 if (optionFields) {
                     const shouldHide = type !== 'option';
                     optionFields.classList.toggle('hidden', shouldHide);
                     console.log('optionFields 隐藏状态:', shouldHide);
+                    
+                    // 动态管理required属性
+                    const requiredFields = optionFields.querySelectorAll('[required]');
+                    requiredFields.forEach(field => {
+                        if (shouldHide) {
+                            field.removeAttribute('required');
+                            field.setAttribute('data-was-required', 'true');
+                        } else {
+                            if (field.getAttribute('data-was-required') === 'true') {
+                                field.setAttribute('required', '');
+                            }
+                        }
+                    });
                 }
                 if (cashFields) {
                     const shouldHide = type !== 'cash_equivalent';
                     cashFields.classList.toggle('hidden', shouldHide);
                     console.log('cashFields 隐藏状态:', shouldHide);
+                    
+                    // 动态管理required属性
+                    const requiredFields = cashFields.querySelectorAll('[required]');
+                    requiredFields.forEach(field => {
+                        if (shouldHide) {
+                            field.removeAttribute('required');
+                            field.setAttribute('data-was-required', 'true');
+                        } else {
+                            if (field.getAttribute('data-was-required') === 'true') {
+                                field.setAttribute('required', '');
+                            }
+                        }
+                    });
                 }
                 
                 // 设置默认日期
@@ -541,6 +580,12 @@ class PortfolioApp {
             document.getElementById('trade-date-input').value = today;
             document.getElementById('option-trade-date-input').value = today;
             document.getElementById('cash-date-input').value = today;
+            
+            // 重置所有required属性状态
+            const allFields = document.querySelectorAll('#trade-form [data-was-required]');
+            allFields.forEach(field => {
+                field.removeAttribute('data-was-required');
+            });
             
             // 清空输入
             document.getElementById('symbol-input').value = symbol || '';
