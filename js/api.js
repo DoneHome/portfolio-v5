@@ -8,19 +8,32 @@ class TradingDataHubAPI {
 
     async _request(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
+        console.log(`API请求: ${url}`, options);
+        
         let lastError;
         
         for (let i = 0; i < this.retryCount; i++) {
             try {
-                const response = await fetch(url, {
+                const fetchOptions = {
                     ...options,
+                    mode: 'cors', // 明确指定CORS模式
+                    credentials: 'include', // 包含凭证
                     headers: {
                         'Content-Type': 'application/json',
                         ...options.headers
                     }
-                });
+                };
+                
+                console.log(`尝试 ${i+1}/${this.retryCount}:`, fetchOptions);
+                
+                const response = await fetch(url, fetchOptions);
+                
+                console.log(`响应状态: ${response.status} ${response.statusText}`);
+                console.log('响应头:', Object.fromEntries(response.headers.entries()));
                 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`HTTP错误 ${response.status}:`, errorText);
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
