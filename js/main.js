@@ -172,20 +172,19 @@ class PortfolioApp {
         const tradeModal = document.getElementById('trade-modal');
         const closeModal = document.getElementById('close-modal');
         const cancelModal = document.getElementById('cancel-modal');
-        const tradeForm = document.getElementById('trade-form');
-
+        
         if (closeModal) {
             closeModal.addEventListener('click', () => this.closeTradeModal());
         }
         if (cancelModal) {
             cancelModal.addEventListener('click', () => this.closeTradeModal());
         }
-        if (tradeForm) {
-            tradeForm.addEventListener('submit', (e) => this.handleTradeSubmit(e));
-        }
         
         // 资产类型标签切换
         this.bindAssetTypeTabs();
+        
+        // 使用事件委托绑定表单提交（避免DOM操作导致事件丢失）
+        this.setupFormEventDelegation();
 
         // 点击模态框外部关闭
         if (tradeModal) {
@@ -204,6 +203,28 @@ class PortfolioApp {
                 this.startAutoRefresh();
                 // 页面重新可见时立即刷新数据
                 this.loadData(true);
+            }
+        });
+    }
+
+    // 设置表单事件委托（修复表单提交失效问题）
+    setupFormEventDelegation() {
+        console.log('设置表单事件委托');
+        
+        // 使用事件委托处理表单提交
+        document.addEventListener('submit', (e) => {
+            if (e.target && e.target.id === 'trade-form') {
+                console.log('事件委托捕获到表单提交');
+                e.preventDefault();
+                this.handleTradeSubmit(e);
+            }
+        });
+        
+        // 使用事件委托处理按钮点击（备用方案）
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.type === 'submit' && e.target.closest('#trade-form')) {
+                console.log('事件委托捕获到提交按钮点击');
+                // 阻止默认行为，由表单提交事件处理
             }
         });
     }
