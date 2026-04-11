@@ -47,6 +47,18 @@
             min-width: 140px;
             z-index: 50;
         }
+        /* 右侧列的菜单向左展开，避免超出屏幕 */
+        td:last-child .menu-container .menu-dropdown,
+        td:nth-last-child(2) .menu-container .menu-dropdown {
+            right: 0;
+            left: auto;
+            transform: translateX(0);
+        }
+        /* 确保菜单在视口内 */
+        .menu-dropdown {
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
         .menu-container:hover .menu-dropdown {
             display: block;
         }
@@ -412,7 +424,7 @@
 
     <!-- 录入交易模态框 -->
     <div id="trade-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-2xl mx-4">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-4xl mx-4">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-medium text-gray-900">录入交易</h3>
                 <button id="close-modal" class="text-gray-400 hover:text-gray-600">
@@ -422,83 +434,254 @@
                 </button>
             </div>
             <form id="trade-form" class="space-y-4">
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">股票代码</label>
-                        <input type="text" id="symbol-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="AAPL, 09992.HK" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">交易方向</label>
-                        <select id="direction-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="buy">买入</option>
-                            <option value="sell">卖出</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">交易日期</label>
-                        <input type="date" id="trade-date-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">数量</label>
-                        <input type="number" id="quantity-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="股数" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">价格</label>
-                        <input type="number" step="0.01" id="price-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="成交价" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">交易货币</label>
-                        <select id="currency-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="USD">美元 (USD)</option>
-                            <option value="HKD">港币 (HKD)</option>
-                            <option value="CNY">人民币 (CNY)</option>
-                        </select>
+                <!-- 资产类型标签页 -->
+                <div class="border-b border-gray-200">
+                    <div class="flex space-x-1" id="asset-type-tabs">
+                        <button type="button" data-type="equity" class="asset-tab flex-1 py-2 px-4 text-sm font-medium text-gray-900 bg-gray-100 rounded-t-lg border-b-2 border-gray-900">
+                            📈 股票
+                        </button>
+                        <button type="button" data-type="etf" class="asset-tab flex-1 py-2 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-t-lg border-b-2 border-transparent">
+                            📊 ETF
+                        </button>
+                        <button type="button" data-type="option" class="asset-tab flex-1 py-2 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-t-lg border-b-2 border-transparent">
+                            📋 期权
+                        </button>
+                        <button type="button" data-type="cash_equivalent" class="asset-tab flex-1 py-2 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-t-lg border-b-2 border-transparent">
+                            💵 现金等价物
+                        </button>
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">策略标签</label>
-                        <select id="strategy-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">选择策略</option>
-                            <option value="左侧加仓">左侧加仓</option>
-                            <option value="右侧突破">右侧突破</option>
-                            <option value="定投">定投</option>
-                            <option value="套利">套利</option>
-                            <option value="对冲">对冲</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">情绪标签</label>
-                        <select id="emotion-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">选择情绪</option>
-                            <option value="理性">理性</option>
-                            <option value="贪婪">贪婪</option>
-                            <option value="恐惧">恐惧</option>
-                            <option value="犹豫">犹豫</option>
-                            <option value="兴奋">兴奋</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">止盈价（可选）</label>
-                        <input type="number" step="0.01" id="take-profit-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="止盈价格">
-                    </div>
-                </div>
+                <input type="hidden" id="asset-type-select" value="equity">
                 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">止损价（可选）</label>
-                        <input type="number" step="0.01" id="stop-loss-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="止损价格">
+                <!-- 股票/ETF 共用字段 -->
+                <div id="equity-etf-fields" class="space-y-4">
+                    <div class="grid grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">股票代码</label>
+                            <input type="text" id="symbol-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="AAPL, 09992.HK" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">股票名称</label>
+                            <input type="text" id="name-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="苹果公司, 阿里巴巴" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易方向</label>
+                            <select id="direction-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="buy">买入</option>
+                                <option value="sell">卖出</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易日期</label>
+                            <input type="date" id="trade-date-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易货币</label>
+                            <select id="currency-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="USD">美元 (USD)</option>
+                                <option value="HKD">港币 (HKD)</option>
+                                <option value="CNY">人民币 (CNY)</option>
+                            </select>
+                        </div>
                     </div>
+                    
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">数量</label>
+                            <input type="number" step="0.001" id="quantity-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="股数" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">成交价格</label>
+                            <input type="number" step="0.01" id="price-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="成交价" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">策略标签</label>
+                            <select id="strategy-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">选择策略</option>
+                                <option value="左侧加仓">左侧加仓</option>
+                                <option value="右侧突破">右侧突破</option>
+                                <option value="定投">定投</option>
+                                <option value="套利">套利</option>
+                                <option value="对冲">对冲</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">情绪标签</label>
+                            <select id="emotion-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">选择情绪</option>
+                                <option value="理性">理性</option>
+                                <option value="贪婪">贪婪</option>
+                                <option value="恐惧">恐惧</option>
+                                <option value="犹豫">犹豫</option>
+                                <option value="兴奋">兴奋</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">止盈价（可选）</label>
+                            <input type="number" step="0.01" id="take-profit-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="止盈价格">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">止损价（可选）</label>
+                            <input type="number" step="0.01" id="stop-loss-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="止损价格">
+                        </div>
+                    </div>
+                    
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">交易理由（可选）</label>
                         <input type="text" id="reason-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="为什么做这笔交易">
                     </div>
                 </div>
                 
+                <!-- 期权专用字段 -->
+                <div id="option-fields" class="space-y-4 hidden">
+                    <div class="grid grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">标的代码</label>
+                            <input type="text" id="option-symbol-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="AAPL">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">期权类型</label>
+                            <select id="option-type-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="call">Call (认购)</option>
+                                <option value="put">Put (认沽)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易方向</label>
+                            <select id="option-direction-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="buy">买入开仓</option>
+                                <option value="sell">卖出开仓</option>
+                                <option value="buy_close">买入平仓</option>
+                                <option value="sell_close">卖出平仓</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易日期</label>
+                            <input type="date" id="option-trade-date-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">行权价</label>
+                            <input type="number" step="0.01" id="strike-price-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="行权价格">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">到期日</label>
+                            <input type="date" id="expiry-date-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">合约数量</label>
+                            <input type="number" step="1" id="option-quantity-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="合约数">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">权利金</label>
+                            <input type="number" step="0.01" id="premium-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="每份权利金">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">合约乘数</label>
+                            <input type="number" step="1" id="contract-multiplier-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="100" value="100">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">内在价值</label>
+                            <input type="number" step="0.01" id="intrinsic-value-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">时间价值</label>
+                            <input type="number" step="0.01" id="time-value-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">隐含波动率</label>
+                            <input type="number" step="0.01" id="implied-volatility-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.25">
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-xs font-medium text-gray-500 mb-2">希腊字母（可选）</p>
+                        <div class="grid grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Delta</label>
+                                <input type="number" step="0.01" id="delta-input" class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Gamma</label>
+                                <input type="number" step="0.01" id="gamma-input" class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Theta</label>
+                                <input type="number" step="0.01" id="theta-input" class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Vega</label>
+                                <input type="number" step="0.01" id="vega-input" class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-blue-500" placeholder="0.00">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">策略说明（可选）</label>
+                        <input type="text" id="option-strategy-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="如：卖Put收租、保护性Call等">
+                    </div>
+                </div>
+                
+                <!-- 现金等价物专用字段 -->
+                <div id="cash-fields" class="space-y-4 hidden">
+                    <div class="grid grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">资产名称</label>
+                            <input type="text" id="cash-name-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="如：博时美元货币基金">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">资产类型</label>
+                            <select id="cash-type-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="money_market">货币基金</option>
+                                <option value="deposit">银行存款</option>
+                                <option value="bond">短期债券</option>
+                                <option value="tbill">国库券</option>
+                                <option value="other">其他</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">市值/金额</label>
+                            <input type="number" step="0.01" id="cash-amount-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="金额">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">货币</label>
+                            <select id="cash-currency-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="USD">美元 (USD)</option>
+                                <option value="HKD">港币 (HKD)</option>
+                                <option value="CNY">人民币 (CNY)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">交易日期</label>
+                            <input type="date" id="cash-date-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">方向</label>
+                            <select id="cash-direction-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="buy">买入/存入</option>
+                                <option value="sell">卖出/取出</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">年化收益率（可选）</label>
+                            <input type="number" step="0.01" id="cash-yield-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="如：4.5">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 公共备注字段 -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
                     <textarea id="notes-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="2" placeholder="其他补充信息（可选）"></textarea>
@@ -513,11 +696,12 @@
     </div>
 
     <!-- 脚本 -->
-    <script src="js/api.js?v=10"></script>
-    <script src="js/calculator-v2.js?v=11"></script>
-    <script src="js/renderer.js?v=10"></script>
-    <script src="js/indexeddb.js?v=10"></script>
-    <script src="js/github-backup.js?v=10"></script>
-    <script src="js/main.js?v=10"></script>
+    <script src="js/api.js?v=11"></script>
+    <script src="js/portfolio-api.js?v=2"></script>
+    <script src="js/calculator-v2.js?v=12"></script>
+    <script src="js/renderer.js?v=11"></script>
+    <script src="js/indexeddb.js?v=11"></script>
+    <script src="js/github-backup.js?v=11"></script>
+    <script src="js/main.js?v=11"></script>
 </body>
 </html>

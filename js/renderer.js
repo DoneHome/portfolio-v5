@@ -227,8 +227,8 @@ class PortfolioRenderer {
                     <div class="flex items-center justify-center gap-2">
                         <button class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs hover:bg-green-200 transition-colors quick-add-btn" data-symbol="${stock.symbol}" title="快速加仓">+</button>
                         <div class="menu-container relative">
-                            <button class="text-gray-400 hover:text-gray-600 text-lg px-1">⋯</button>
-                            <div class="menu-dropdown">
+                            <button class="text-gray-400 hover:text-gray-600 text-lg px-1 menu-trigger">⋯</button>
+                            <div class="menu-dropdown absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 hidden group-hover:block hover:block">
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">股票详情</a>
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">交易历史</a>
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">止盈止损</a>
@@ -289,8 +289,8 @@ class PortfolioRenderer {
                     <div class="flex items-center justify-center gap-2">
                         <button class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs hover:bg-green-200 transition-colors quick-add-btn" data-symbol="${stock.symbol}" title="快速加仓">+</button>
                         <div class="menu-container relative">
-                            <button class="text-gray-400 hover:text-gray-600 text-lg px-1">⋯</button>
-                            <div class="menu-dropdown">
+                            <button class="text-gray-400 hover:text-gray-600 text-lg px-1 menu-trigger">⋯</button>
+                            <div class="menu-dropdown absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 hidden group-hover:block hover:block">
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">基金详情</a>
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">交易历史</a>
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">定投设置</a>

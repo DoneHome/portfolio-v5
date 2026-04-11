@@ -54,7 +54,7 @@ class PortfolioApp {
     async syncWithBackend() {
         try {
             // 1. 获取后端数据版本
-            const backendData = await DB.getPortfolioData();
+            const backendData = await Portfolio.getPositions();
             const backendVersion = backendData.data_version;
             
             // 2. 获取本地缓存版本
@@ -183,6 +183,9 @@ class PortfolioApp {
         if (tradeForm) {
             tradeForm.addEventListener('submit', (e) => this.handleTradeSubmit(e));
         }
+        
+        // 资产类型标签切换
+        this.bindAssetTypeTabs();
 
         // 点击模态框外部关闭
         if (tradeModal) {
@@ -429,22 +432,75 @@ class PortfolioApp {
         }
     }
 
+    // 绑定资产类型标签切换
+    bindAssetTypeTabs() {
+        const tabs = document.querySelectorAll('.asset-tab');
+        const assetTypeSelect = document.getElementById('asset-type-select');
+        const equityEtfFields = document.getElementById('equity-etf-fields');
+        const optionFields = document.getElementById('option-fields');
+        const cashFields = document.getElementById('cash-fields');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const type = tab.dataset.type;
+                
+                // 更新隐藏字段
+                if (assetTypeSelect) {
+                    assetTypeSelect.value = type;
+                }
+                
+                // 更新标签样式
+                tabs.forEach(t => {
+                    t.className = 'asset-tab flex-1 py-2 px-4 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-t-lg border-b-2 border-transparent';
+                });
+                tab.className = 'asset-tab flex-1 py-2 px-4 text-sm font-medium text-gray-900 bg-gray-100 rounded-t-lg border-b-2 border-gray-900';
+                
+                // 显示/隐藏对应字段
+                if (equityEtfFields) {
+                    equityEtfFields.classList.toggle('hidden', type !== 'equity' && type !== 'etf');
+                }
+                if (optionFields) {
+                    optionFields.classList.toggle('hidden', type !== 'option');
+                }
+                if (cashFields) {
+                    cashFields.classList.toggle('hidden', type !== 'cash_equivalent');
+                }
+                
+                // 设置默认日期
+                const today = new Date().toISOString().split('T')[0];
+                const dateInputs = document.querySelectorAll('input[type="date"]');
+                dateInputs.forEach(input => {
+                    if (!input.value) input.value = today;
+                });
+            });
+        });
+    }
+
     // 打开交易模态框
     openTradeModal(symbol = '') {
         const modal = document.getElementById('trade-modal');
-        const symbolInput = document.getElementById('symbol-input');
         
-        if (modal && symbolInput) {
-            symbolInput.value = symbol;
+        if (modal) {
             modal.classList.remove('hidden');
+            
+            // 重置为股票标签
+            const equityTab = document.querySelector('.asset-tab[data-type="equity"]');
+            if (equityTab) {
+                equityTab.click();
+            }
             
             // 设置默认值
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('trade-date-input').value = today;
+            document.getElementById('option-trade-date-input').value = today;
+            document.getElementById('cash-date-input').value = today;
+            
+            // 清空输入
+            document.getElementById('symbol-input').value = symbol || '';
             document.getElementById('quantity-input').value = '';
             document.getElementById('price-input').value = '';
             document.getElementById('direction-select').value = 'buy';
-            document.getElementById('currency-select').value = symbol.includes('.HK') ? 'HKD' : 'USD';
+            document.getElementById('currency-select').value = symbol && symbol.includes('.HK') ? 'HKD' : 'USD';
             document.getElementById('notes-input').value = '';
             
             // 如果提供了symbol，自动获取当前价格
@@ -478,76 +534,45 @@ class PortfolioApp {
     // 处理交易提交（同步到后端）
     async handleTradeSubmit(e) {
         e.preventDefault();
+        console.log('handleTradeSubmit 被调用');
         
-        const symbol = document.getElementById('symbol-input').value.trim();
-        const direction = document.getElementById('direction-select').value;
-        const quantity = parseInt(document.getElementById('quantity-input').value);
-        const price = parseFloat(document.getElementById('price-input').value);
-        const tradeDate = document.getElementById('trade-date-input').value;
-        const currency = document.getElementById('currency-select').value;
-        const notes = document.getElementById('notes-input').value.trim();
-        
-        if (!symbol || !quantity || !price || !tradeDate) {
-            alert('请填写完整信息（股票代码、数量、价格、交易日期）');
-            return;
-        }
-        
-        if (quantity <= 0 || price <= 0) {
-            alert('数量和价格必须大于0');
-            return;
-        }
+        const assetType = document.getElementById('asset-type-select').value;
+        let transaction;
         
         try {
-            // 1. 获取股票信息
-            let stockName = symbol;
-            let market = symbol.includes('.HK') ? 'HK' : 'US';
-            let stockType = 'equity'; // 默认权益类
-            
-            try {
-                const quote = await API.getStockQuote(symbol);
-                stockName = quote.name || symbol;
-                // 可以根据 symbol 判断类型，这里简化处理
-            } catch (error) {
-                console.warn('获取股票信息失败，使用默认值:', error);
+            // 根据资产类型构建不同的交易数据
+            switch (assetType) {
+                case 'equity':
+                case 'etf':
+                    transaction = await this.buildEquityTransaction(assetType);
+                    break;
+                case 'option':
+                    transaction = await this.buildOptionTransaction();
+                    break;
+                case 'cash_equivalent':
+                    transaction = await this.buildCashTransaction();
+                    break;
+                default:
+                    throw new Error('未知的资产类型');
             }
             
-            // 2. 构建完整交易数据
-            const transaction = {
-                symbol,
-                name: stockName,
-                market,
-                type: stockType,
-                direction,
-                shares: quantity,
-                price,
-                currency,
-                trade_date: tradeDate,
-                notes,
-                source: 'manual'
-            };
+            if (!transaction) {
+                return; // 验证失败，已显示错误提示
+            }
             
-            // 3. 先调用后端 API
+            // 调用后端 API
             console.log('提交交易到后端:', transaction);
-            const backendResult = await DB.addTransaction(transaction);
+            const backendResult = await Portfolio.addTransaction(transaction);
             
             if (backendResult && backendResult.success) {
                 console.log('后端保存成功:', backendResult);
                 
-                // 4. 后端成功后，同步到前端 IndexedDB
-                transaction.id = backendResult.id;
-                transaction.created_at = new Date().toISOString();
-                const transactionId = await this.db.addTransaction(transaction);
-                
-                // 5. 更新本地版本号
-                if (backendResult.data_version) {
-                    localStorage.setItem('portfolio_data_version', backendResult.data_version);
-                    console.log('更新本地版本号:', backendResult.data_version);
-                }
-                
+                // 4. 触发数据同步以获取最新持仓数据（Portfolio.addTransaction 内部已调用 syncData）
+                // 这里只需要重新加载数据即可
                 alert('交易记录已保存到服务器');
                 this.closeTradeModal();
                 
-                // 6. 重新加载数据（会自动同步最新持仓）
+                // 5. 重新加载数据（会自动同步最新持仓）
                 await this.loadData(true);
             } else {
                 alert('保存失败，请重试');
@@ -622,9 +647,251 @@ class PortfolioApp {
         };
         reader.readAsText(file);
     }
+
+    // 构建股票/ETF交易数据
+    async buildEquityTransaction(assetType) {
+        const symbol = document.getElementById('symbol-input').value.trim();
+        const name = document.getElementById('name-input').value.trim();
+        const direction = document.getElementById('direction-select').value;
+        const quantity = parseFloat(document.getElementById('quantity-input').value);
+        const price = parseFloat(document.getElementById('price-input').value);
+        const tradeDate = document.getElementById('trade-date-input').value;
+        const currency = document.getElementById('currency-select').value;
+        const strategy = document.getElementById('strategy-select')?.value || '';
+        const emotion = document.getElementById('emotion-select')?.value || '';
+        const takeProfit = document.getElementById('take-profit-input')?.value ? parseFloat(document.getElementById('take-profit-input').value) : null;
+        const stopLoss = document.getElementById('stop-loss-input')?.value ? parseFloat(document.getElementById('stop-loss-input').value) : null;
+        const reason = document.getElementById('reason-input')?.value || '';
+        const notes = document.getElementById('notes-input').value.trim();
+        
+        if (!symbol || !quantity || !price || !tradeDate) {
+            alert('请填写完整信息（股票代码、数量、价格、交易日期）');
+            return null;
+        }
+        
+        if (quantity <= 0 || price <= 0) {
+            alert('数量和价格必须大于0');
+            return null;
+        }
+        
+        // 获取股票信息
+        let stockName = symbol;
+        let market = symbol.includes('.HK') ? 'HK' : 'US';
+        
+        try {
+            const quote = await API.getStockQuote(symbol);
+            stockName = quote.name || symbol;
+        } catch (error) {
+            console.warn('获取股票信息失败，使用默认值:', error);
+        }
+        
+        return {
+            symbol,
+            name: name || stockName,  // 优先使用用户输入的名称
+            market,
+            type: assetType,
+            direction,
+            shares: quantity,
+            price,
+            currency,
+            trade_date: tradeDate,
+            strategy,
+            emotion,
+            take_profit: takeProfit,
+            stop_loss: stopLoss,
+            reason,
+            notes,
+            source: 'manual'
+        };
+    }
+    
+    // 构建期权交易数据
+    async buildOptionTransaction() {
+        const symbol = document.getElementById('option-symbol-input').value.trim();
+        const optionType = document.getElementById('option-type-select').value;
+        const direction = document.getElementById('option-direction-select').value;
+        const tradeDate = document.getElementById('option-trade-date-input').value;
+        const strikePrice = parseFloat(document.getElementById('strike-price-input').value);
+        const expiryDate = document.getElementById('expiry-date-input').value;
+        const quantity = parseFloat(document.getElementById('option-quantity-input').value);
+        const premium = parseFloat(document.getElementById('premium-input').value);
+        const strategy = document.getElementById('option-strategy-input')?.value || '';
+        const notes = document.getElementById('notes-input').value.trim();
+        
+        // 希腊字母（可选）
+        const delta = document.getElementById('delta-input')?.value ? parseFloat(document.getElementById('delta-input').value) : null;
+        const gamma = document.getElementById('gamma-input')?.value ? parseFloat(document.getElementById('gamma-input').value) : null;
+        const theta = document.getElementById('theta-input')?.value ? parseFloat(document.getElementById('theta-input').value) : null;
+        const vega = document.getElementById('vega-input')?.value ? parseFloat(document.getElementById('vega-input').value) : null;
+        
+        // 新增期权字段
+        const contractMultiplier = document.getElementById('contract-multiplier-input')?.value ? parseInt(document.getElementById('contract-multiplier-input').value) : 100;
+        const intrinsicValue = document.getElementById('intrinsic-value-input')?.value ? parseFloat(document.getElementById('intrinsic-value-input').value) : null;
+        const timeValue = document.getElementById('time-value-input')?.value ? parseFloat(document.getElementById('time-value-input').value) : null;
+        const impliedVolatility = document.getElementById('implied-volatility-input')?.value ? parseFloat(document.getElementById('implied-volatility-input').value) : null;
+        
+        if (!symbol || !quantity || !premium || !tradeDate || !strikePrice || !expiryDate) {
+            alert('请填写完整信息（标的代码、行权价、到期日、合约数量、权利金）');
+            return null;
+        }
+        
+        if (quantity <= 0 || premium <= 0 || strikePrice <= 0) {
+            alert('数量、权利金、行权价必须大于0');
+            return null;
+        }
+        
+        // 构建期权代码（如：AAPL250417C150）
+        const expiryStr = expiryDate.replace(/-/g, '').substring(2); // 250417
+        const optionSymbol = `${symbol}${expiryStr}${optionType.toUpperCase().charAt(0)}${Math.round(strikePrice)}`;
+        
+        return {
+            symbol: optionSymbol,
+            underlying: symbol,
+            name: `${symbol} ${expiryDate} ${optionType === 'call' ? 'Call' : 'Put'} @ ${strikePrice}`,
+            market: symbol.includes('.HK') ? 'HK' : 'US',
+            type: 'option',
+            option_type: optionType,
+            direction: direction.includes('buy') ? 'buy' : 'sell',
+            is_opening: direction.includes('buy') ? direction === 'buy' : direction === 'sell',
+            shares: quantity,
+            price: premium,
+            strike_price: strikePrice,
+            expiry_date: expiryDate,
+            currency: 'USD',
+            trade_date: tradeDate,
+            strategy,
+            greeks: { delta, gamma, theta, vega },
+            notes,
+            source: 'manual',
+            option_details: {
+                contract_multiplier: contractMultiplier,
+                intrinsic_value: intrinsicValue,
+                time_value: timeValue,
+                implied_volatility: impliedVolatility,
+                strike_price: strikePrice,
+                expiry_date: expiryDate,
+                option_type: optionType,
+                greeks: { delta, gamma, theta, vega }
+            }
+        };
+    }
+    
+    // 构建现金等价物交易数据
+    async buildCashTransaction() {
+        const name = document.getElementById('cash-name-input').value.trim();
+        const cashType = document.getElementById('cash-type-select').value;
+        const amount = parseFloat(document.getElementById('cash-amount-input').value);
+        const currency = document.getElementById('cash-currency-select').value;
+        const tradeDate = document.getElementById('cash-date-input').value;
+        const direction = document.getElementById('cash-direction-select').value;
+        const yield_rate = document.getElementById('cash-yield-input')?.value ? parseFloat(document.getElementById('cash-yield-input').value) : null;
+        const notes = document.getElementById('notes-input').value.trim();
+        
+        if (!name || !amount || !tradeDate) {
+            alert('请填写完整信息（资产名称、市值/金额、交易日期）');
+            return null;
+        }
+        
+        if (amount <= 0) {
+            alert('金额必须大于0');
+            return null;
+        }
+        
+        // 生成唯一代码
+        const typeMap = { money_market: 'MMF', deposit: 'DEP', bond: 'BOND', tbill: 'TB', other: 'CASH' };
+        const typeCode = typeMap[cashType] || 'CASH';
+        const symbol = `${typeCode}_${name.substring(0, 10).replace(/\s+/g, '_').toUpperCase()}`;
+        
+        return {
+            symbol,
+            name,
+            market: currency === 'CNY' ? 'CN' : (currency === 'HKD' ? 'HK' : 'US'),
+            type: 'cash_equivalent',
+            cash_subtype: cashType,
+            direction,
+            shares: amount,
+            price: 1.0,
+            currency,
+            trade_date: tradeDate,
+            yield_rate,
+            notes,
+            source: 'manual',
+            cash_details: {
+                cash_subtype: cashType,
+                yield_rate: yield_rate
+            }
+        };
+    }
+}
+
+// 菜单自适应逻辑
+function initAdaptiveMenus() {
+    // 点击菜单按钮时调整位置
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('menu-trigger')) {
+            const menuTrigger = e.target;
+            const menuDropdown = menuTrigger.nextElementSibling;
+            
+            if (menuDropdown && menuDropdown.classList.contains('menu-dropdown')) {
+                // 显示菜单
+                menuDropdown.classList.toggle('hidden');
+                
+                // 计算位置
+                const triggerRect = menuTrigger.getBoundingClientRect();
+                const dropdownRect = menuDropdown.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                
+                // 如果右侧空间不足，向左展开
+                if (triggerRect.right + dropdownRect.width > viewportWidth - 10) {
+                    menuDropdown.style.right = 'auto';
+                    menuDropdown.style.left = '0';
+                } else {
+                    menuDropdown.style.right = '0';
+                    menuDropdown.style.left = 'auto';
+                }
+                
+                // 点击其他地方关闭菜单
+                const closeMenu = (event) => {
+                    if (!menuDropdown.contains(event.target) && !menuTrigger.contains(event.target)) {
+                        menuDropdown.classList.add('hidden');
+                        document.removeEventListener('click', closeMenu);
+                    }
+                };
+                
+                setTimeout(() => {
+                    document.addEventListener('click', closeMenu);
+                }, 0);
+            }
+        }
+    });
+    
+    // 鼠标悬停时也调整位置
+    document.addEventListener('mouseover', (e) => {
+        if (e.target.classList.contains('menu-trigger')) {
+            const menuTrigger = e.target;
+            const menuDropdown = menuTrigger.nextElementSibling;
+            
+            if (menuDropdown && menuDropdown.classList.contains('menu-dropdown')) {
+                // 计算位置
+                const triggerRect = menuTrigger.getBoundingClientRect();
+                const dropdownRect = menuDropdown.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                
+                // 如果右侧空间不足，向左展开
+                if (triggerRect.right + dropdownRect.width > viewportWidth - 10) {
+                    menuDropdown.style.right = 'auto';
+                    menuDropdown.style.left = '0';
+                } else {
+                    menuDropdown.style.right = '0';
+                    menuDropdown.style.left = 'auto';
+                }
+            }
+        }
+    });
 }
 
 // 启动应用
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new PortfolioApp();
+    initAdaptiveMenus();
 });
