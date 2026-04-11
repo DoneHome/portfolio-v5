@@ -475,7 +475,7 @@ class PortfolioApp {
         }
     }
 
-    // 处理交易提交
+    // 处理交易提交（同步到后端）
     async handleTradeSubmit(e) {
         e.preventDefault();
         
@@ -498,29 +498,56 @@ class PortfolioApp {
         }
         
         try {
-            // 验证股票代码
-            await API.getStockQuote(symbol);
+            // 1. 获取股票信息
+            let stockName = symbol;
+            let market = symbol.includes('.HK') ? 'HK' : 'US';
+            let stockType = 'equity'; // 默认权益类
             
-            // 保存交易记录
+            try {
+                const quote = await API.getStockQuote(symbol);
+                stockName = quote.name || symbol;
+                // 可以根据 symbol 判断类型，这里简化处理
+            } catch (error) {
+                console.warn('获取股票信息失败，使用默认值:', error);
+            }
+            
+            // 2. 构建完整交易数据
             const transaction = {
                 symbol,
-                name: symbol, // 实际应从API获取名称
+                name: stockName,
+                market,
+                type: stockType,
                 direction,
-                quantity,
+                shares: quantity,
                 price,
                 currency,
                 trade_date: tradeDate,
                 notes,
-                created_at: new Date().toISOString()
+                source: 'manual'
             };
             
-            const transactionId = await this.db.addTransaction(transaction);
+            // 3. 先调用后端 API
+            console.log('提交交易到后端:', transaction);
+            const backendResult = await DB.addTransaction(transaction);
             
-            if (transactionId) {
-                alert('交易记录已保存');
+            if (backendResult && backendResult.success) {
+                console.log('后端保存成功:', backendResult);
+                
+                // 4. 后端成功后，同步到前端 IndexedDB
+                transaction.id = backendResult.id;
+                transaction.created_at = new Date().toISOString();
+                const transactionId = await this.db.addTransaction(transaction);
+                
+                // 5. 更新本地版本号
+                if (backendResult.data_version) {
+                    localStorage.setItem('portfolio_data_version', backendResult.data_version);
+                    console.log('更新本地版本号:', backendResult.data_version);
+                }
+                
+                alert('交易记录已保存到服务器');
                 this.closeTradeModal();
                 
-                // 重新加载数据
+                // 6. 重新加载数据（会自动同步最新持仓）
                 await this.loadData(true);
             } else {
                 alert('保存失败，请重试');
