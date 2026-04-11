@@ -861,7 +861,7 @@ class PortfolioApp {
         const expiryStr = expiryDate.replace(/-/g, '').substring(2); // 250417
         const optionSymbol = `${symbol}${expiryStr}${optionType.toUpperCase().charAt(0)}${Math.round(strikePrice)}`;
         
-        return {
+        const transactionData = {
             symbol: symbol,  // 标的代码，不是期权代码
             name: stockName, // 标的名称
             market: market,
@@ -886,6 +886,9 @@ class PortfolioApp {
                 greeks: { delta, gamma, theta, vega }
             }
         };
+        
+        console.log('构建的期权交易数据:', JSON.stringify(transactionData, null, 2));
+        return transactionData;
     }
     
     // 构建现金等价物交易数据
