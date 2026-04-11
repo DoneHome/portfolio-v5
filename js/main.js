@@ -43,18 +43,65 @@ class PortfolioApp {
             this.db = IndexedDB;
             await this.db.init();
             
-            // 只在数据库为空时初始化示例数据
-            const positions = await this.db.getPositions();
-            if (positions.length === 0) {
-                console.log('数据库为空，初始化示例数据...');
-                await this.db.initSampleData();
-            }
-            
             console.log('数据库初始化完成');
         } catch (error) {
             console.error('数据库初始化失败:', error);
             throw error;
         }
+    }
+
+    // 与后端数据同步
+    async syncWithBackend() {
+        try {
+            // 1. 获取后端数据版本
+            const backendData = await DB.getPortfolioData();
+            const backendVersion = backendData.data_version;
+            
+            // 2. 获取本地缓存版本
+            const localVersion = localStorage.getItem('portfolio_data_version') || '0';
+            
+            console.log(`版本对比: 后端=${backendVersion}, 本地=${localVersion}`);
+            
+            // 3. 如果后端版本更新，同步数据
+            if (backendData.success && this.compareVersions(backendVersion, localVersion) > 0) {
+                console.log('检测到后端数据更新，开始同步...');
+                
+                // 同步持仓数据
+                if (backendData.positions && backendData.positions.length > 0) {
+                    await this.db.clearPositions();
+                    for (const position of backendData.positions) {
+                        await this.db.addPosition(position);
+                    }
+                    console.log(`同步持仓数据: ${backendData.positions.length} 条记录`);
+                }
+                
+                // 同步目标配置
+                if (backendData.goals && Object.keys(backendData.goals).length > 0) {
+                    // 这里可以添加目标配置的同步逻辑
+                    console.log('同步目标配置:', backendData.goals);
+                }
+                
+                // 更新本地版本号
+                localStorage.setItem('portfolio_data_version', backendVersion);
+                console.log('数据同步完成，更新本地版本号:', backendVersion);
+                
+            } else if (!backendData.success) {
+                console.log('后端不可用，使用本地缓存数据');
+            } else {
+                console.log('本地数据已是最新，无需同步');
+            }
+            
+        } catch (error) {
+            console.warn('数据同步失败，使用本地缓存:', error);
+        }
+    }
+
+    // 比较版本号（简单字符串比较）
+    compareVersions(version1, version2) {
+        // 将版本号转换为数字进行比较
+        const v1 = parseInt(version1) || 0;
+        const v2 = parseInt(version2) || 0;
+        return v1 - v2;
     }
 
     // 初始化备份服务
@@ -158,7 +205,7 @@ class PortfolioApp {
         });
     }
 
-    // 加载数据
+    // 加载数据（带版本同步）
     async loadData(forceRefresh = false) {
         if (this.isRefreshing && !forceRefresh) return;
         
@@ -166,11 +213,14 @@ class PortfolioApp {
         Renderer.showLoading(true);
         
         try {
-            // 1. 从 IndexedDB 获取持仓数据
+            // 1. 检查后端数据版本并同步
+            await this.syncWithBackend();
+            
+            // 2. 从 IndexedDB 获取持仓数据（同步后的最新数据）
             const positions = await this.db.getPositions();
             const symbols = positions.map(p => p.symbol);
             
-            // 2. 批量查询股票价格和汇率
+            // 3. 批量查询股票价格和汇率
             if (symbols.length === 0) {
                 // 没有持仓时显示空状态
                 this.renderEmptyState();
@@ -185,13 +235,13 @@ class PortfolioApp {
                 console.warn('部分股票查询失败:', batchData.errors);
             }
 
-            // 3. 获取汇率数据
+            // 4. 获取汇率数据
             const forexRates = batchData.forex_rates || {};
             
-            // 4. 获取现金数据
+            // 5. 获取现金数据
             const cash = await this.db.getCash();
             
-            // 5. 计算所有指标
+            // 6. 计算所有指标
             const calculator = new PortfolioCalculator();
             calculator.positions = positions.filter(p => p.type !== 'cash_equivalent'); // 股票和ETF（排除现金等价物）
             calculator.cashEquivalents = positions.filter(p => p.type === 'cash_equivalent'); // 现金等价物

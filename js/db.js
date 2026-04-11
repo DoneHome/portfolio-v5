@@ -1,6 +1,6 @@
 // 后端 API 数据库操作
 class PortfolioAPI {
-    constructor(baseURL = 'http://localhost:8006') {
+    constructor(baseURL = 'http://localhost:8005') {
         this.baseURL = baseURL;
     }
 
@@ -26,11 +26,33 @@ class PortfolioAPI {
         }
     }
 
-    // 获取持仓列表
-    async getPositions() {
-        const result = await this._request('/api/portfolio/positions');
-        return result.data || [];
+    // 获取完整持仓数据（包含版本号）
+    async getPortfolioData() {
+        try {
+            const result = await this._request('/api/portfolio/positions');
+            return {
+                success: true,
+                data_version: result.data_version || '0',
+                positions: result.positions || [],
+                goals: result.goals || {},
+                investment_plans: result.investment_plans || []
+            };
+        } catch (error) {
+            console.warn('获取后端持仓数据失败，使用本地缓存:', error);
+            return {
+                success: false,
+                data_version: '0',
+                positions: [],
+                goals: {},
+                investment_plans: []
+            };
+        }
     }
+
+    // 获取持仓列表（兼容旧接口）
+    async getPositions() {
+        const result = await this.getPortfolioData();
+        return result.positions;
 
     // 获取现金等价物
     async getCashEquivalents() {

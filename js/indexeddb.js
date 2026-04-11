@@ -523,6 +523,28 @@ class PortfolioIndexedDB {
         console.log('数据清空完成');
     }
 
+    // ========== 数据管理方法 ==========
+
+    // 清空所有持仓数据
+    async clearPositions() {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction(['positions'], 'readwrite');
+            const store = transaction.objectStore('positions');
+            
+            const request = store.clear();
+            
+            request.onsuccess = () => {
+                console.log('持仓数据已清空');
+                resolve();
+            };
+            
+            request.onerror = (event) => {
+                console.error('清空持仓数据失败:', event.target.error);
+                reject(event.target.error);
+            };
+        });
+    }
+
     // ========== 初始化示例数据 ==========
 
     async initSampleData() {
