@@ -244,6 +244,11 @@ class PortfolioIndexedDB {
         if (!transaction.trade_date) {
             transaction.trade_date = new Date().toISOString().split('T')[0];
         }
+        
+        // 如果传入的 transaction 有 id，删除它让 IndexedDB 自动生成
+        if (transaction.id !== undefined) {
+            delete transaction.id;
+        }
 
         const id = await this._add('transactions', transaction);
         
