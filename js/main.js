@@ -211,22 +211,35 @@ class PortfolioApp {
     setupFormEventDelegation() {
         console.log('设置表单事件委托');
         
+        // 保存this引用，确保在事件回调中能正确访问
+        const self = this;
+        
         // 使用事件委托处理表单提交
-        document.addEventListener('submit', (e) => {
+        document.addEventListener('submit', function(e) {
             if (e.target && e.target.id === 'trade-form') {
-                console.log('事件委托捕获到表单提交');
+                console.log('事件委托捕获到表单提交，表单ID:', e.target.id);
+                console.log('事件类型:', e.type);
                 e.preventDefault();
-                this.handleTradeSubmit(e);
+                self.handleTradeSubmit(e);
             }
         });
         
-        // 使用事件委托处理按钮点击（备用方案）
-        document.addEventListener('click', (e) => {
-            if (e.target && e.target.type === 'submit' && e.target.closest('#trade-form')) {
-                console.log('事件委托捕获到提交按钮点击');
-                // 阻止默认行为，由表单提交事件处理
+        // 添加一个简单的测试：检查表单是否存在
+        setTimeout(() => {
+            const form = document.getElementById('trade-form');
+            console.log('表单检查 - 是否存在:', !!form);
+            if (form) {
+                console.log('表单ID:', form.id);
+                console.log('表单子元素数量:', form.children.length);
+                
+                // 检查提交按钮
+                const submitBtn = form.querySelector('button[type="submit"]');
+                console.log('提交按钮:', submitBtn ? '存在' : '不存在');
+                if (submitBtn) {
+                    console.log('按钮文本:', submitBtn.textContent);
+                }
             }
-        });
+        }, 1000);
     }
 
     // 加载数据（带版本同步）
