@@ -846,30 +846,36 @@ class PortfolioApp {
             return null;
         }
         
+        // 获取标的股票信息
+        let stockName = symbol;
+        let market = symbol.includes('.HK') ? 'HK' : 'US';
+        
+        try {
+            const quote = await API.getStockQuote(symbol);
+            stockName = quote.name || symbol;
+        } catch (error) {
+            console.warn('获取股票信息失败，使用默认值:', error);
+        }
+        
         // 构建期权代码（如：AAPL250417C150）
         const expiryStr = expiryDate.replace(/-/g, '').substring(2); // 250417
         const optionSymbol = `${symbol}${expiryStr}${optionType.toUpperCase().charAt(0)}${Math.round(strikePrice)}`;
         
         return {
-            symbol: optionSymbol,
-            underlying: symbol,
-            name: `${symbol} ${expiryDate} ${optionType === 'call' ? 'Call' : 'Put'} @ ${strikePrice}`,
-            market: symbol.includes('.HK') ? 'HK' : 'US',
+            symbol: symbol,  // 标的代码，不是期权代码
+            name: stockName, // 标的名称
+            market: market,
             type: 'option',
-            option_type: optionType,
             direction: direction.includes('buy') ? 'buy' : 'sell',
-            is_opening: direction.includes('buy') ? direction === 'buy' : direction === 'sell',
             shares: quantity,
-            price: premium,
-            strike_price: strikePrice,
-            expiry_date: expiryDate,
+            price: premium,  // 权利金
             currency: 'USD',
             trade_date: tradeDate,
             strategy,
-            greeks: { delta, gamma, theta, vega },
             notes,
             source: 'manual',
             option_details: {
+                option_symbol: optionSymbol,  // 期权代码
                 contract_multiplier: contractMultiplier,
                 intrinsic_value: intrinsicValue,
                 time_value: timeValue,
