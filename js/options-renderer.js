@@ -79,32 +79,177 @@ class OptionsRenderer {
         if (this.isRefreshing && !force) return;
         
         this.isRefreshing = true;
-        this.showLoading(true);
         
         try {
-            // 模拟API调用 - 实际开发时需要替换为真实API
-            // const response = await fetch(`${this.apiBaseUrl}/position-details`);
-            // const result = await response.json();
+            // 1. 从IndexedDB获取期权持仓
+            const positions = await this.getOptionPositionsFromDB();
             
-            // 暂时使用模拟数据
-            const result = await this.getMockOptionsData();
+            if (positions.length === 0) {
+                this.renderEmptyState();
+                this.isRefreshing = false;
+                return;
+            }
             
-            if (result.success) {
-                this.optionsData = result.data;
+            // 2. 提取期权代码
+            const optionSymbols = positions.map(p => {
+                if (p.option_details && p.option_details.option_symbol) {
+                    return p.option_details.option_symbol;
+                }
+                return null;
+            }).filter(symbol => symbol);
+            
+            if (optionSymbols.length === 0) {
+                this.renderEmptyState();
+                this.isRefreshing = false;
+                return;
+            }
+            
+            // 3. 批量查询期权权利金
+            const quotes = await this.fetchOptionQuotes(optionSymbols);
+            
+            // 4. 获取标的股票价格
+            const underlyingSymbols = [...new Set(positions.map(p => p.symbol))];
+            const stockPrices = await this.fetchStockPrices(underlyingSymbols);
+            
+            // 5. 处理数据并渲染
+            const optionsData = this.processOptionsData(positions, quotes, stockPrices);
+            this.optionsData = optionsData;
+            this.renderOptionsTable(optionsData);
+            this.updateSummary(optionsData);
+            this.updateLastUpdated();
+            
+            console.log('期权数据刷新完成，处理了', optionsData.length, '个期权');
+            
+        } catch (error) {
+            console.error('刷新期权数据失败:', error);
+            this.showError('刷新失败: ' + error.message);
+            
+            // 出错时显示模拟数据（开发阶段）
+            const mockResult = await this.getMockOptionsData();
+            if (mockResult.success) {
+                this.optionsData = mockResult.data;
                 this.renderOptionsTable(this.optionsData);
                 this.updateSummary(this.optionsData);
                 this.updateLastUpdated();
-            } else {
-                console.error('期权数据获取失败:', result.error);
-                this.showError('期权数据获取失败: ' + (result.error || '未知错误'));
             }
-        } catch (error) {
-            console.error('刷新期权数据失败:', error);
-            this.showError('网络连接失败: ' + error.message);
         } finally {
             this.isRefreshing = false;
-            this.showLoading(false);
         }
+    }
+    
+    /**
+     * 从IndexedDB获取期权持仓
+     */
+    async getOptionPositionsFromDB() {
+        try {
+            // 假设IndexedDB实例可用
+            if (typeof IndexedDB !== 'undefined') {
+                const positions = await IndexedDB.getPositions();
+                return positions.filter(p => p.type === 'option');
+            }
+            
+            // 如果IndexedDB不可用，返回空数组
+            console.warn('IndexedDB不可用，无法获取期权持仓');
+            return [];
+            
+        } catch (error) {
+            console.error('获取期权持仓失败:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * 批量查询期权权利金
+     * @param {Array} optionSymbols - 期权代码数组
+     */
+    async fetchOptionQuotes(optionSymbols) {
+        try {
+            const symbolsParam = optionSymbols.join(',');
+            const response = await fetch(`/api/portfolio/options/batch-quotes?symbols=${encodeURIComponent(symbolsParam)}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || '期权报价查询失败');
+            }
+            
+            return result.data;
+            
+        } catch (error) {
+            console.error('获取期权报价失败:', error);
+            // 返回空对象，让后续处理决定
+            return {};
+        }
+    }
+    
+    /**
+     * 获取标的股票价格
+     * @param {Array} symbols - 股票代码数组
+     */
+    async fetchStockPrices(symbols) {
+        try {
+            // 使用现有的股票API
+            if (typeof API !== 'undefined') {
+                const result = await API.getBatchQuotes(symbols, false);
+                return result.stocks || {};
+            }
+            
+            // 备用方案：直接调用API
+            const symbolsParam = symbols.join(',');
+            const response = await fetch(`/api/stock/quotes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    symbols: symbolsParam,
+                    include_forex: false
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            return result.stocks || {};
+            
+        } catch (error) {
+            console.error('获取股票价格失败:', error);
+            return {};
+        }
+    }
+    
+    /**
+     * 处理期权数据
+     * @param {Array} positions - 期权持仓
+     * @param {Object} quotes - 期权报价
+     * @param {Object} stockPrices - 股票价格
+     */
+    processOptionsData(positions, quotes, stockPrices) {
+        return positions.map(position => {
+            const optionSymbol = position.option_details?.option_symbol;
+            const quote = quotes[optionSymbol] || {};
+            const stockPrice = stockPrices[position.symbol]?.price || 0;
+            
+            // 使用OptionsUtils计算展示字段
+            const optionData = OptionsUtils.extractOptionData(position);
+            const displayFields = OptionsUtils.calculateDisplayFields(
+                optionData,
+                stockPrice,
+                quote.premium || 0
+            );
+            
+            return {
+                ...position,
+                ...displayFields,
+                quote_data: quote
+            };
+        });
     }
     
     /**

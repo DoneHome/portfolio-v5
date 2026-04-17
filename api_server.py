@@ -7,6 +7,8 @@ Portfolio API Server (轻量级版本)
 import json
 import sqlite3
 import sys
+import re
+from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -14,6 +16,7 @@ from urllib.parse import parse_qs, urlparse
 # 添加 data 目录到路径
 sys.path.append(str(Path(__file__).parent / "data"))
 from db import db
+from options_service import options_service
 
 
 class PortfolioHandler(BaseHTTPRequestHandler):
@@ -84,9 +87,60 @@ class PortfolioHandler(BaseHTTPRequestHandler):
                 "data": cash
             })
         
+        # ========== 期权API接口 ==========
+        
+        # 期权持仓详情
+        elif path == '/api/portfolio/options/position-details':
+            options = db.get_option_positions()
+            self._send_json({
+                "success": True,
+                "data": options,
+                "count": len(options)
+            })
+        
+        # 期权代码解析
+        elif path == '/api/portfolio/options/parse-symbol':
+            query = parse_qs(parsed.query)
+            option_symbol = query.get('symbol', [''])[0]
+            
+            if not option_symbol:
+                self._send_json({
+                    "success": False,
+                    "error": "缺少期权代码参数"
+                }, 400)
+                return
+            
+            # 使用期权服务解析代码
+            parsed_info = options_service.parse_option_symbol(option_symbol)
+            self._send_json({
+                "success": True,
+                "data": parsed_info
+            })
+        
+        # 批量查询期权权利金
+        elif path == '/api/portfolio/options/batch-quotes':
+            query = parse_qs(parsed.query)
+            symbols_param = query.get('symbols', [''])[0]
+            
+            if not symbols_param:
+                self._send_json({
+                    "success": False,
+                    "error": "缺少期权代码参数"
+                }, 400)
+                return
+            
+            symbols = [s.strip() for s in symbols_param.split(',') if s.strip()]
+            
+            # 使用期权服务获取真实数据
+            quotes = options_service.get_batch_option_premiums(symbols)
+            
+            self._send_json({
+                "success": True,
+                "data": quotes
+            })
+        
         # 健康检查
         elif path == '/api/health':
-            from datetime import datetime
             self._send_json({
                 "status": "healthy",
                 "service": "Portfolio API",
@@ -95,6 +149,8 @@ class PortfolioHandler(BaseHTTPRequestHandler):
         
         else:
             self._send_json({"error": "Not found"}, 404)
+    
+
     
     def do_POST(self):
         """处理 POST 请求"""
@@ -123,7 +179,7 @@ class PortfolioHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "Not found"}, 404)
 
 
-def run_server(port=8006):
+def run_server(port=8005):
     """启动服务器"""
     server = HTTPServer(('0.0.0.0', port), PortfolioHandler)
     print(f"Portfolio API 服务启动: http://localhost:{port}")

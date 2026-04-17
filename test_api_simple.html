@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期权API测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 8px 16px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; white-space: pre-wrap; font-family: monospace; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>期权API测试</h1>
+    
+    <div class="test-section">
+        <h3>1. 健康检查</h3>
+        <button onclick="testHealth()">测试健康检查</button>
+        <div id="health-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. 期权代码解析</h3>
+        <input type="text" id="option-symbol" placeholder="输入期权代码，如: AAPL260418C180" style="width: 300px; padding: 5px;">
+        <button onclick="testParseSymbol()">解析代码</button>
+        <div id="parse-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. 批量查询期权权利金</h3>
+        <input type="text" id="option-symbols" placeholder="输入期权代码，用逗号分隔" style="width: 400px; padding: 5px;" value="AAPL260418C180,AAPL260418P180">
+        <button onclick="testBatchQuotes()">批量查询</button>
+        <div id="batch-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>4. 期权持仓详情</h3>
+        <button onclick="testPositionDetails()">获取持仓详情</button>
+        <div id="positions-result" class="result"></div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8005';
+        
+        async function testHealth() {
+            const resultEl = document.getElementById('health-result');
+            resultEl.innerHTML = '测试中...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                
+                resultEl.innerHTML = JSON.stringify(data, null, 2);
+                resultEl.className = 'result success';
+            } catch (error) {
+                resultEl.innerHTML = `错误: ${error.message}`;
+                resultEl.className = 'result error';
+            }
+        }
+        
+        async function testParseSymbol() {
+            const symbol = document.getElementById('option-symbol').value.trim();
+            const resultEl = document.getElementById('parse-result');
+            
+            if (!symbol) {
+                resultEl.innerHTML = '请输入期权代码';
+                resultEl.className = 'result error';
+                return;
+            }
+            
+            resultEl.innerHTML = '测试中...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/portfolio/options/parse-symbol?symbol=${encodeURIComponent(symbol)}`);
+                const data = await response.json();
+                
+                resultEl.innerHTML = JSON.stringify(data, null, 2);
+                resultEl.className = data.success ? 'result success' : 'result error';
+            } catch (error) {
+                resultEl.innerHTML = `错误: ${error.message}`;
+                resultEl.className = 'result error';
+            }
+        }
+        
+        async function testBatchQuotes() {
+            const symbols = document.getElementById('option-symbols').value.trim();
+            const resultEl = document.getElementById('batch-result');
+            
+            if (!symbols) {
+                resultEl.innerHTML = '请输入期权代码';
+                resultEl.className = 'result error';
+                return;
+            }
+            
+            resultEl.innerHTML = '测试中...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/portfolio/options/batch-quotes?symbols=${encodeURIComponent(symbols)}`);
+                const data = await response.json();
+                
+                resultEl.innerHTML = JSON.stringify(data, null, 2);
+                resultEl.className = data.success ? 'result success' : 'result error';
+            } catch (error) {
+                resultEl.innerHTML = `错误: ${error.message}`;
+                resultEl.className = 'result error';
+            }
+        }
+        
+        async function testPositionDetails() {
+            const resultEl = document.getElementById('positions-result');
+            resultEl.innerHTML = '测试中...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/portfolio/options/position-details`);
+                const data = await response.json();
+                
+                resultEl.innerHTML = JSON.stringify(data, null, 2);
+                resultEl.className = data.success ? 'result success' : 'result error';
+            } catch (error) {
+                resultEl.innerHTML = `错误: ${error.message}`;
+                resultEl.className = 'result error';
+            }
+        }
+        
+        // 页面加载时测试健康检查
+        window.onload = testHealth;
+    </script>
+</body>
+</html>
