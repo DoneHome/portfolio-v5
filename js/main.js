@@ -294,14 +294,14 @@ class PortfolioApp {
                 return symbol; // 美股代码保持不变
             });
             
-            console.log('查询股价的代码:', { symbols, querySymbols });
+            console.log('查询股价的代码:', { stockSymbols, querySymbols });
             
             const batchData = await API.getBatchQuotes(querySymbols, true);
             
             // 映射股价数据：将带 .HK 后缀的键映射回原始 symbol
             const mappedStocks = {};
-            for (let i = 0; i < symbols.length; i++) {
-                const originalSymbol = symbols[i];
+            for (let i = 0; i < stockSymbols.length; i++) {
+                const originalSymbol = stockSymbols[i];
                 const querySymbol = querySymbols[i];
                 
                 if (batchData.stocks && batchData.stocks[querySymbol]) {
