@@ -54,12 +54,40 @@ class OptionsService:
         """
         解析期权代码
         支持格式：
-        - 美股：AAPL260418C180 (标的+到期日+看涨/看跌+行权价)
-        - 港股：00700HK260418C350 (标的+到期日+看涨/看跌+行权价)
+        1. Y Finance格式: AAPL260417C00110000 (标的+到期日+看涨/看跌+行权价8位)
+        2. 我们的格式: AAPL260418C180 (标的+到期日+看涨/看跌+行权价)
+        3. 港股格式: 00700HK260418C350 (标的+到期日+看涨/看跌+行权价)
         """
         symbol = option_symbol.strip().upper()
         
-        # 美股期权格式
+        # 1. 尝试匹配Y Finance格式
+        # 格式：标的(1-5字母) + 到期日(6位YYMMDD) + 看涨/看跌(C/P) + 行权价(8位，补零)
+        yf_pattern = r'^([A-Z]{1,5})(\d{6})([CP])(\d{8})$'
+        yf_match = re.match(yf_pattern, symbol)
+        
+        if yf_match:
+            underlying, expiry, option_type, strike_str = yf_match.groups()
+            
+            # 解析行权价（去掉前导零）
+            strike = float(strike_str) / 1000  # 8位数字，如00110000 = 110.0
+            
+            # 解析到期日
+            year = '20' + expiry[0:2]
+            month = expiry[2:4]
+            day = expiry[4:6]
+            expiry_date = f"{year}-{month}-{day}"
+            
+            return {
+                "underlying_symbol": underlying,
+                "expiry_date": expiry_date,
+                "option_type": "call" if option_type == "C" else "put",
+                "strike_price": strike,
+                "format": "yfinance",
+                "original_symbol": symbol,
+                "yfinance_symbol": symbol  # Y Finance格式直接使用
+            }
+        
+        # 2. 尝试匹配我们的美股期权格式
         us_pattern = r'^([A-Z]{1,5})(\d{6})([CP])(\d+(?:\.\d+)?)$'
         us_match = re.match(us_pattern, symbol)
         
@@ -72,6 +100,10 @@ class OptionsService:
             day = expiry[4:6]
             expiry_date = f"{year}-{month}-{day}"
             
+            # 转换为Y Finance格式
+            strike_padded = str(int(float(strike) * 1000)).zfill(8)
+            yf_symbol = f"{underlying}{expiry}{option_type}{strike_padded}"
+            
             return {
                 "underlying_symbol": underlying,
                 "expiry_date": expiry_date,
@@ -79,10 +111,10 @@ class OptionsService:
                 "strike_price": float(strike),
                 "format": "us",
                 "original_symbol": symbol,
-                "yfinance_symbol": self._convert_to_yfinance_format(underlying, expiry, option_type, strike)
+                "yfinance_symbol": yf_symbol
             }
         
-        # 港股期权格式
+        # 3. 尝试匹配港股期权格式
         hk_pattern = r'^(\d{5})HK(\d{6})([CP])(\d+(?:\.\d+)?)$'
         hk_match = re.match(hk_pattern, symbol)
         
@@ -95,6 +127,10 @@ class OptionsService:
             day = expiry[4:6]
             expiry_date = f"{year}-{month}-{day}"
             
+            # 转换为Y Finance格式
+            strike_padded = str(int(float(strike) * 1000)).zfill(8)
+            yf_symbol = f"{underlying}{expiry}{option_type}{strike_padded}"
+            
             return {
                 "underlying_symbol": underlying + ".HK",
                 "expiry_date": expiry_date,
@@ -102,7 +138,7 @@ class OptionsService:
                 "strike_price": float(strike),
                 "format": "hk",
                 "original_symbol": symbol,
-                "yfinance_symbol": self._convert_to_yfinance_format(underlying + ".HK", expiry, option_type, strike)
+                "yfinance_symbol": yf_symbol
             }
         
         # 无法解析
@@ -116,15 +152,7 @@ class OptionsService:
             "error": "无法解析期权代码格式"
         }
     
-    def _convert_to_yfinance_format(self, underlying: str, expiry: str, option_type: str, strike: str) -> str:
-        """
-        将我们的期权代码转换为Y Finance格式
-        注意：Y Finance使用不同的期权代码格式，这里需要进一步研究
-        暂时返回原始代码
-        """
-        # TODO: 实现正确的Y Finance期权代码转换
-        # Y Finance格式示例: AAPL260418C00180000
-        return f"{underlying}{expiry}{option_type}{strike.zfill(8)}"
+
     
     def get_underlying_price(self, symbol: str) -> Optional[float]:
         """获取标的股票价格"""
