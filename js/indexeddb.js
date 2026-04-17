@@ -194,36 +194,36 @@ class PortfolioIndexedDB {
                 const store = transaction.objectStore(storeName);
                 
                 // 调试：检查要保存的数据
-                if (storeName === 'positions') {
-                    console.log('IndexedDB 保存数据 - 详细信息:', {
-                        symbol: data.symbol,
-                        option_symbol: data.option_symbol,
-                        type: data.type,
-                        keyPath: store.keyPath,
-                        // 检查键值是否有效
-                        symbolValid: typeof data.symbol === 'string' && data.symbol.trim() !== '',
-                        optionSymbolValid: data.option_symbol === '' || (typeof data.option_symbol === 'string' && data.option_symbol.trim() !== ''),
-                        // 完整的键值
-                        fullKey: [data.symbol, data.option_symbol],
-                        // 数据类型检查
-                        symbolType: typeof data.symbol,
-                        optionSymbolType: typeof data.option_symbol,
-                        // 原始数据（前几个字段）
-                        dataPreview: {
-                            symbol: data.symbol,
-                            name: data.name,
-                            market: data.market,
-                            type: data.type,
-                            shares: data.shares,
-                            cost_price: data.cost_price,
-                            currency: data.currency,
-                            option_symbol: data.option_symbol,
-                            option_details: data.option_details,
-                            created_at: data.created_at,
-                            updated_at: data.updated_at
-                        }
-                    });
-                }
+                // if (storeName === 'positions') {
+                //     console.log('IndexedDB 保存数据 - 详细信息:', {
+                //         symbol: data.symbol,
+                //         option_symbol: data.option_symbol,
+                //         type: data.type,
+                //         keyPath: store.keyPath,
+                //         // 检查键值是否有效
+                //         symbolValid: typeof data.symbol === 'string' && data.symbol.trim() !== '',
+                //         optionSymbolValid: data.option_symbol === '' || (typeof data.option_symbol === 'string' && data.option_symbol.trim() !== ''),
+                //         // 完整的键值
+                //         fullKey: [data.symbol, data.option_symbol],
+                //         // 数据类型检查
+                //         symbolType: typeof data.symbol,
+                //         optionSymbolType: typeof data.option_symbol,
+                //         // 原始数据（前几个字段）
+                //         dataPreview: {
+                //             symbol: data.symbol,
+                //             name: data.name,
+                //             market: data.market,
+                //             type: data.type,
+                //             shares: data.shares,
+                //             cost_price: data.cost_price,
+                //             currency: data.currency,
+                //             option_symbol: data.option_symbol,
+                //             option_details: data.option_details,
+                //             created_at: data.created_at,
+                //             updated_at: data.updated_at
+                //         }
+                //     });
+                // }
                 
                 const request = store.put(data);
 
@@ -279,7 +279,7 @@ class PortfolioIndexedDB {
     }
 
     async addOrUpdatePosition(position) {
-        console.log('addOrUpdatePosition 开始处理:', { symbol: position.symbol, type: position.type });
+        // console.log('addOrUpdatePosition 开始处理:', { symbol: position.symbol, type: position.type });
         
         // 验证必要字段
         if (!position.symbol || typeof position.symbol !== 'string' || position.symbol.trim() === '') {
@@ -313,12 +313,12 @@ class PortfolioIndexedDB {
             position.option_symbol = '';
         }
         
-        console.log('addOrUpdatePosition 处理完成:', { 
-            symbol: position.symbol, 
-            type: position.type, 
-            option_symbol: position.option_symbol,
-            hasOptionDetails: !!position.option_details
-        });
+        //console.log('addOrUpdatePosition 处理完成:', { 
+        //    symbol: position.symbol, 
+        //    type: position.type, 
+        //    option_symbol: position.option_symbol,
+        //    hasOptionDetails: !!position.option_details
+        //});
 
         return await this._put('positions', position);
     }

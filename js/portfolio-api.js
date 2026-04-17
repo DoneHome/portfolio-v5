@@ -101,12 +101,12 @@ class PortfolioAPI {
                 }
                 
                 // 调试：检查键值
-                console.log('保存持仓:', {
-                    symbol: dbPosition.symbol,
-                    option_symbol: dbPosition.option_symbol,
-                    type: dbPosition.type,
-                    hasOptionDetails: !!dbPosition.option_details
-                });
+                // console.log('保存持仓:', {
+                //     symbol: dbPosition.symbol,
+                //     option_symbol: dbPosition.option_symbol,
+                //     type: dbPosition.type,
+                //     hasOptionDetails: !!dbPosition.option_details
+                // });
                 
                 await db.put('positions', dbPosition);
             }
