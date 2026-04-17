@@ -184,23 +184,11 @@ class PortfolioApp {
             });
         }
 
-        // 期权刷新按钮（新增）
-        const refreshOptionsBtn = document.getElementById('refresh-options');
-        if (refreshOptionsBtn) {
-            refreshOptionsBtn.addEventListener('click', () => {
-                if (this.optionsRenderer) {
-                    this.optionsRenderer.triggerManualRefresh();
-                }
-            });
-        }
-        
-        // 全局刷新按钮也刷新期权数据
+        // 全局刷新按钮同时刷新期权数据
         if (refreshBtn) {
-            // 保存原始的事件处理函数
-            const originalHandler = refreshBtn.onclick || (() => this.loadData(true));
             refreshBtn.addEventListener('click', () => {
-                // 调用原始处理函数
-                originalHandler();
+                // 刷新主页面数据
+                this.loadData(true);
                 // 同时刷新期权数据
                 if (this.optionsRenderer) {
                     this.optionsRenderer.refreshOptionsData(true);

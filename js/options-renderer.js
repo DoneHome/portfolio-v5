@@ -67,10 +67,8 @@ class OptionsRenderer {
      * 绑定事件
      */
     bindEvents() {
-        // 绑定刷新按钮事件
-        document.getElementById('refresh-options').addEventListener('click', () => {
-            this.triggerManualRefresh();
-        });
+        // 不再需要独立的刷新按钮，与主页面共用刷新
+        // 期权数据会在主页面刷新时自动刷新
     }
     
     /**
@@ -344,18 +342,8 @@ class OptionsRenderer {
      * @param {boolean} show - 是否显示加载
      */
     showLoading(show) {
-        const refreshBtn = document.getElementById('refresh-options');
-        if (refreshBtn) {
-            if (show) {
-                refreshBtn.disabled = true;
-                refreshBtn.textContent = '刷新中...';
-                refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            } else {
-                refreshBtn.disabled = false;
-                refreshBtn.textContent = '刷新数据';
-                refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }
-        }
+        // 不再需要独立的加载状态，与主页面共用
+        // 主页面顶部的加载指示器会统一显示
     }
     
     /**
@@ -375,7 +363,7 @@ class OptionsRenderer {
     }
     
     /**
-     * 手动刷新触发
+     * 手动刷新触发（由主页面调用）
      */
     triggerManualRefresh() {
         this.refreshOptionsData(true);
