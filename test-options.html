@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>期权模块测试</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-green { color: #10b981; font-weight: 600; }
+        .status-blue { color: #3b82f6; font-weight: 600; }
+        .status-yellow { color: #f59e0b; font-weight: 600; }
+        .status-red { color: #ef4444; font-weight: 600; }
+        
+        .pnl-positive { color: #10b981; }
+        .pnl-negative { color: #ef4444; }
+        .pnl-zero { color: #6b7280; }
+    </style>
+</head>
+<body class="bg-gray-50 p-8">
+    <h1 class="text-2xl font-bold mb-6">期权模块测试</h1>
+    
+    <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">1. OptionsUtils 测试</h2>
+        <div id="utils-test" class="bg-white p-4 rounded-lg shadow">
+            测试结果将显示在这里...
+        </div>
+        <button onclick="testOptionsUtils()" class="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
+            运行 OptionsUtils 测试
+        </button>
+    </div>
+    
+    <div class="mb-8">
+        <h2 class="text-lg font-semibold mb-4">2. 期权表格测试</h2>
+        <div id="options-section" class="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm font-medium text-gray-900">期权持仓</h2>
+                    <span id="options-count" class="text-xs text-gray-400">(0个)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="refresh-options" class="flex items-center gap-1.5 text-xs text-gray-600 bg-white px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        刷新数据
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-container overflow-x-auto">
+                <table id="options-table" class="data-table w-full text-sm">
+                    <thead class="bg-gray-50/50">
+                        <tr class="text-xs text-gray-500">
+                            <th class="px-4 py-3 text-left font-medium">标的</th>
+                            <th class="px-4 py-3 text-left font-medium">期权代码</th>
+                            <th class="px-4 py-3 text-left font-medium">方向</th>
+                            <th class="px-4 py-3 text-right font-medium">合约数</th>
+                            <th class="px-4 py-3 text-right font-medium">行权价</th>
+                            <th class="px-4 py-3 text-right font-medium">开仓权利金</th>
+                            <th class="px-4 py-3 text-right font-medium">当前权利金</th>
+                            <th class="px-4 py-3 text-right font-medium">当前股价</th>
+                            <th class="px-4 py-3 text-right font-medium">价差(%)</th>
+                            <th class="px-4 py-3 text-left font-medium">虚实状态</th>
+                            <th class="px-4 py-3 text-right font-medium">距到期天数</th>
+                            <th class="px-4 py-3 text-right font-medium">盈亏平衡点</th>
+                            <th class="px-4 py-3 text-right font-medium">浮动盈亏</th>
+                            <th class="px-4 py-3 text-right font-medium">市值</th>
+                        </tr>
+                    </thead>
+                    <tbody id="options-table-body" class="divide-y divide-gray-100">
+                        <!-- 动态填充 -->
+                        <tr>
+                            <td colspan="14" class="px-4 py-8 text-center text-gray-400">
+                                加载中...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="table-footer px-5 py-3 border-t border-gray-100">
+                <div class="flex justify-between items-center">
+                    <div class="summary flex gap-6">
+                        <span class="text-xs text-gray-600">
+                            期权总市值: <span id="options-total-value" class="value font-medium">0</span> CNY
+                        </span>
+                        <span class="text-xs text-gray-600">
+                            总浮动盈亏: <span id="options-total-pnl" class="value font-medium">0</span> CNY
+                        </span>
+                        <span class="text-xs text-gray-600">
+                            持仓数量: <span id="options-count" class="value font-medium">0</span> 个
+                        </span>
+                    </div>
+                    <div class="controls flex items-center gap-4">
+                        <span class="last-updated text-xs text-gray-500">
+                            最后更新: <span id="options-last-updated">-</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/options-utils.js"></script>
+    <script src="js/options-renderer.js"></script>
+    <script>
+        // 初始化期权渲染器
+        const optionsRenderer = new OptionsRenderer();
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            optionsRenderer.init();
+        });
+        
+        // OptionsUtils 测试函数
+        function testOptionsUtils() {
+            const output = document.getElementById('utils-test');
+            output.innerHTML = '<div class="text-gray-500">测试中...</div>';
+            
+            try {
+                // 测试数据
+                const testPosition = {
+                    symbol: 'MU',
+                    type: 'option',
+                    quantity: -1,
+                    cost_price: 2.5,
+                    option_details: {
+                        option_symbol: 'MU260424P358',
+                        strike_price: 358,
+                        expiry_date: '2026-04-24',
+                        option_type: 'put',
+                        transaction_type: 'sell',
+                        contract_multiplier: 100
+                    }
+                };
+                
+                // 提取期权数据
+                const optionData = OptionsUtils.extractOptionData(testPosition);
+                
+                // 计算展示字段
+                const displayFields = OptionsUtils.calculateDisplayFields(
+                    optionData,
+                    385.5,  // 当前股价
+                    2.10    // 当前权利金
+                );
+                
+                // 显示结果
+                let html = '<div class="space-y-2">';
+                html += '<div class="font-semibold text-green-600">✓ OptionsUtils 测试通过</div>';
+                html += '<div class="text-sm">提取的期权数据:</div>';
+                html += '<pre class="text-xs bg-gray-50 p-2 rounded">' + JSON.stringify(optionData, null, 2) + '</pre>';
+                html += '<div class="text-sm">计算的展示字段:</div>';
+                html += '<pre class="text-xs bg-gray-50 p-2 rounded">' + JSON.stringify(displayFields, null, 2) + '</pre>';
+                html += '</div>';
+                
+                output.innerHTML = html;
+                
+            } catch (error) {
+                output.innerHTML = '<div class="text-red-600">✗ 测试失败: ' + error.message + '</div>';
+                console.error('测试失败:', error);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,430 @@
+// 期权表格渲染器
+// 版本：1.0.0
+// 创建时间：2026-04-17
+// 遵循技术方案：期权持仓展示模块优化方案.md
+
+class OptionsRenderer {
+    constructor() {
+        // 与主页面保持一致：5分钟刷新间隔
+        this.refreshInterval = 300000; // 300秒 = 5分钟
+        this.refreshTimer = null;
+        this.lastUpdate = null;
+        this.apiBaseUrl = '/api/portfolio/options';
+        this.isRefreshing = false;
+        this.optionsData = [];
+    }
+    
+    /**
+     * 初始化期权表格
+     */
+    async init() {
+        console.log('期权渲染器初始化...');
+        
+        // 检查HTML元素是否存在
+        if (!this.checkHtmlElements()) {
+            console.error('期权表格HTML元素缺失，请检查index.html');
+            return;
+        }
+        
+        // 绑定刷新按钮事件
+        this.bindEvents();
+        
+        // 初始加载数据
+        await this.refreshOptionsData();
+        
+        // 启动定时刷新
+        this.startAutoRefresh();
+        
+        console.log('期权渲染器初始化完成');
+    }
+    
+    /**
+     * 检查必要的HTML元素
+     */
+    checkHtmlElements() {
+        const requiredElements = [
+            'options-section',
+            'options-table',
+            'options-table-body',
+            'options-total-value',
+            'options-total-pnl',
+            'options-count',
+            'refresh-options',
+            'options-last-updated'
+        ];
+        
+        for (const id of requiredElements) {
+            if (!document.getElementById(id)) {
+                console.error(`缺少HTML元素: #${id}`);
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 绑定事件
+     */
+    bindEvents() {
+        // 绑定刷新按钮事件
+        document.getElementById('refresh-options').addEventListener('click', () => {
+            this.triggerManualRefresh();
+        });
+    }
+    
+    /**
+     * 刷新期权数据
+     * @param {boolean} force - 是否强制刷新
+     */
+    async refreshOptionsData(force = false) {
+        if (this.isRefreshing && !force) return;
+        
+        this.isRefreshing = true;
+        this.showLoading(true);
+        
+        try {
+            // 模拟API调用 - 实际开发时需要替换为真实API
+            // const response = await fetch(`${this.apiBaseUrl}/position-details`);
+            // const result = await response.json();
+            
+            // 暂时使用模拟数据
+            const result = await this.getMockOptionsData();
+            
+            if (result.success) {
+                this.optionsData = result.data;
+                this.renderOptionsTable(this.optionsData);
+                this.updateSummary(this.optionsData);
+                this.updateLastUpdated();
+            } else {
+                console.error('期权数据获取失败:', result.error);
+                this.showError('期权数据获取失败: ' + (result.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('刷新期权数据失败:', error);
+            this.showError('网络连接失败: ' + error.message);
+        } finally {
+            this.isRefreshing = false;
+            this.showLoading(false);
+        }
+    }
+    
+    /**
+     * 获取模拟期权数据（开发阶段使用）
+     */
+    async getMockOptionsData() {
+        // 模拟API延迟
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // 模拟数据
+        const mockData = [
+            {
+                标的: 'MU',
+                期权代码: 'MU260424P358',
+                方向: '卖出看跌',
+                合约数: '1张',
+                行权价: '358.00',
+                开仓权利金: '250.00',
+                当前权利金: '2.10',
+                当前股价: '385.50',
+                价差百分比: '7.13%',
+                虚实状态: '虚值',
+                距到期天数: 7,
+                盈亏平衡点: '355.90',
+                浮动盈亏: '40.00',
+                市值: '210.00',
+                状态颜色: 'blue',
+                风险等级: '关注'
+            },
+            {
+                标的: 'TSLA',
+                期权代码: 'TSLA260501C250',
+                方向: '买入看涨',
+                合约数: '2张',
+                行权价: '250.00',
+                开仓权利金: '500.00',
+                当前权利金: '5.80',
+                当前股价: '245.30',
+                价差百分比: '-1.92%',
+                虚实状态: '虚值',
+                距到期天数: 14,
+                盈亏平衡点: '255.80',
+                浮动盈亏: '-40.00',
+                市值: '1160.00',
+                状态颜色: 'yellow',
+                风险等级: '警示'
+            },
+            {
+                标的: 'AAPL',
+                期权代码: 'AAPL260418C180',
+                方向: '卖出看涨',
+                合约数: '1张',
+                行权价: '180.00',
+                开仓权利金: '150.00',
+                当前权利金: '1.20',
+                当前股价: '175.50',
+                价差百分比: '2.56%',
+                虚实状态: '虚值',
+                距到期天数: 1,
+                盈亏平衡点: '181.50',
+                浮动盈亏: '30.00',
+                市值: '120.00',
+                状态颜色: 'green',
+                风险等级: '安全'
+            }
+        ];
+        
+        return {
+            success: true,
+            data: mockData
+        };
+    }
+    
+    /**
+     * 渲染期权表格
+     * @param {Array} optionsData - 期权数据数组
+     */
+    renderOptionsTable(optionsData) {
+        const tbody = document.getElementById('options-table-body');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+        
+        if (!optionsData || optionsData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="14" class="text-center">暂无期权持仓</td></tr>';
+            return;
+        }
+        
+        // 按风险等级排序：危险 > 警示 > 关注 > 安全
+        const riskOrder = { '危险': 0, '警示': 1, '关注': 2, '安全': 3 };
+        const sortedData = [...optionsData].sort((a, b) => {
+            return riskOrder[a.风险等级] - riskOrder[b.风险等级];
+        });
+        
+        sortedData.forEach(option => {
+            const row = this.createOptionRow(option);
+            tbody.appendChild(row);
+        });
+    }
+    
+    /**
+     * 创建期权行
+     * @param {Object} option - 期权数据对象
+     * @returns {HTMLElement} 表格行元素
+     */
+    createOptionRow(option) {
+        const row = document.createElement('tr');
+        
+        // 基础信息
+        row.appendChild(this.createCell(option.标的));
+        row.appendChild(this.createCell(option.期权代码));
+        row.appendChild(this.createCell(option.方向));
+        row.appendChild(this.createCell(option.合约数));
+        row.appendChild(this.createCell(option.行权价));
+        
+        // 权利金信息
+        row.appendChild(this.createCell(option.开仓权利金));
+        row.appendChild(this.createCell(option.当前权利金));
+        row.appendChild(this.createCell(option.当前股价));
+        
+        // 价差和状态（带颜色）
+        const priceDiffCell = this.createCell(option.价差百分比);
+        priceDiffCell.classList.add(`status-${option.状态颜色}`);
+        row.appendChild(priceDiffCell);
+        
+        // 虚实状态（带颜色）
+        const statusCell = this.createCell(option.虚实状态);
+        statusCell.classList.add(`status-${option.状态颜色}`);
+        row.appendChild(statusCell);
+        
+        // 时间信息
+        const daysCell = this.createCell(option.距到期天数);
+        if (option.距到期天数 <= 3) {
+            daysCell.classList.add('text-red-600', 'font-semibold');
+        } else if (option.距到期天数 <= 7) {
+            daysCell.classList.add('text-yellow-600', 'font-semibold');
+        }
+        row.appendChild(daysCell);
+        
+        // 盈亏平衡点
+        row.appendChild(this.createCell(option.盈亏平衡点));
+        
+        // 浮动盈亏（带颜色）
+        const pnlValue = parseFloat(option.浮动盈亏);
+        const pnlCell = this.createCell(option.浮动盈亏);
+        if (pnlValue > 0) {
+            pnlCell.classList.add('pnl-positive');
+        } else if (pnlValue < 0) {
+            pnlCell.classList.add('pnl-negative');
+        } else {
+            pnlCell.classList.add('pnl-zero');
+        }
+        row.appendChild(pnlCell);
+        
+        // 市值
+        row.appendChild(this.createCell(option.市值));
+        
+        return row;
+    }
+    
+    /**
+     * 创建表格单元格
+     * @param {string} text - 单元格文本
+     * @returns {HTMLElement} 单元格元素
+     */
+    createCell(text) {
+        const td = document.createElement('td');
+        td.textContent = text;
+        td.className = 'px-4 py-3 text-sm';
+        return td;
+    }
+    
+    /**
+     * 更新汇总信息
+     * @param {Array} optionsData - 期权数据数组
+     */
+    updateSummary(optionsData) {
+        if (!optionsData || optionsData.length === 0) {
+            document.getElementById('options-total-value').textContent = '0';
+            document.getElementById('options-total-pnl').textContent = '0';
+            document.getElementById('options-count').textContent = '0';
+            return;
+        }
+        
+        const totalValue = optionsData.reduce((sum, option) => sum + parseFloat(option.市值), 0);
+        const totalPnl = optionsData.reduce((sum, option) => sum + parseFloat(option.浮动盈亏), 0);
+        
+        document.getElementById('options-total-value').textContent = totalValue.toFixed(2);
+        document.getElementById('options-count').textContent = optionsData.length;
+        
+        const pnlElement = document.getElementById('options-total-pnl');
+        pnlElement.textContent = totalPnl.toFixed(2);
+        pnlElement.className = totalPnl > 0 ? 'pnl-positive' : 
+                              totalPnl < 0 ? 'pnl-negative' : 'pnl-zero';
+        
+        // 更新风险统计
+        this.updateRiskStats(optionsData);
+    }
+    
+    /**
+     * 更新风险统计
+     * @param {Array} optionsData - 期权数据数组
+     */
+    updateRiskStats(optionsData) {
+        const riskStats = {
+            危险: 0,
+            警示: 0,
+            关注: 0,
+            安全: 0
+        };
+        
+        optionsData.forEach(option => {
+            if (riskStats.hasOwnProperty(option.风险等级)) {
+                riskStats[option.风险等级]++;
+            }
+        });
+        
+        // 可以在这里添加风险统计显示
+        console.log('期权风险统计:', riskStats);
+    }
+    
+    /**
+     * 更新最后更新时间
+     */
+    updateLastUpdated() {
+        this.lastUpdate = new Date();
+        const element = document.getElementById('options-last-updated');
+        if (element) {
+            element.textContent = this.lastUpdate.toLocaleTimeString();
+        }
+    }
+    
+    /**
+     * 显示加载状态
+     * @param {boolean} show - 是否显示加载
+     */
+    showLoading(show) {
+        const refreshBtn = document.getElementById('refresh-options');
+        if (refreshBtn) {
+            if (show) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = '刷新中...';
+                refreshBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '刷新数据';
+                refreshBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+    }
+    
+    /**
+     * 显示错误信息
+     * @param {string} message - 错误消息
+     */
+    showError(message) {
+        const tbody = document.getElementById('options-table-body');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="14" class="text-center text-red-600 py-4">${message}</td></tr>`;
+        }
+        
+        // 更新汇总信息为0
+        document.getElementById('options-total-value').textContent = '0';
+        document.getElementById('options-total-pnl').textContent = '0';
+        document.getElementById('options-count').textContent = '0';
+    }
+    
+    /**
+     * 手动刷新触发
+     */
+    triggerManualRefresh() {
+        this.refreshOptionsData(true);
+    }
+    
+    /**
+     * 启动自动刷新
+     */
+    startAutoRefresh() {
+        if (this.refreshTimer) {
+            clearInterval(this.refreshTimer);
+        }
+        
+        this.refreshTimer = setInterval(() => {
+            this.refreshOptionsData();
+        }, this.refreshInterval);
+        
+        console.log(`期权自动刷新已启动，间隔: ${this.refreshInterval / 1000}秒`);
+    }
+    
+    /**
+     * 停止自动刷新
+     */
+    stopAutoRefresh() {
+        if (this.refreshTimer) {
+            clearInterval(this.refreshTimer);
+            this.refreshTimer = null;
+            console.log('期权自动刷新已停止');
+        }
+    }
+    
+    /**
+     * 销毁实例
+     */
+    destroy() {
+        this.stopAutoRefresh();
+        console.log('期权渲染器已销毁');
+    }
+}
+
+// 全局实例
+const OptionsTable = new OptionsRenderer();
+
+// 页面加载完成后初始化
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        OptionsTable.init();
+    });
+} else {
+    // DOM已经加载完成
+    OptionsTable.init();
+}

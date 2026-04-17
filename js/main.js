@@ -9,6 +9,9 @@ class PortfolioApp {
         this.backupService = null;
         this.currentMarketFilter = 'all';
         
+        // 添加期权渲染器实例
+        this.optionsRenderer = null;
+        
         this.init();
     }
 
@@ -19,6 +22,9 @@ class PortfolioApp {
         
         // 绑定事件
         this.bindEvents();
+        
+        // 初始化期权渲染器
+        await this.initOptionsRenderer();
         
         // 初始加载数据
         await this.loadData();
@@ -31,6 +37,19 @@ class PortfolioApp {
         
         // 初始化折叠功能
         Renderer.initCollapse();
+    }
+
+    // 初始化期权渲染器
+    async initOptionsRenderer() {
+        try {
+            // 创建期权渲染器实例
+            this.optionsRenderer = new OptionsRenderer();
+            await this.optionsRenderer.init();
+            console.log('期权渲染器初始化成功');
+        } catch (error) {
+            console.error('期权渲染器初始化失败:', error);
+            // 不阻止主程序运行
+        }
     }
 
     // 初始化数据库
@@ -165,6 +184,30 @@ class PortfolioApp {
             });
         }
 
+        // 期权刷新按钮（新增）
+        const refreshOptionsBtn = document.getElementById('refresh-options');
+        if (refreshOptionsBtn) {
+            refreshOptionsBtn.addEventListener('click', () => {
+                if (this.optionsRenderer) {
+                    this.optionsRenderer.triggerManualRefresh();
+                }
+            });
+        }
+        
+        // 全局刷新按钮也刷新期权数据
+        if (refreshBtn) {
+            // 保存原始的事件处理函数
+            const originalHandler = refreshBtn.onclick || (() => this.loadData(true));
+            refreshBtn.addEventListener('click', () => {
+                // 调用原始处理函数
+                originalHandler();
+                // 同时刷新期权数据
+                if (this.optionsRenderer) {
+                    this.optionsRenderer.refreshOptionsData(true);
+                }
+            });
+        }
+        
         // 交易模态框
         const tradeModal = document.getElementById('trade-modal');
         const closeModal = document.getElementById('close-modal');
@@ -258,30 +301,57 @@ class PortfolioApp {
             const cashEquivalents = positions.filter(p => p.type === 'cash_equivalent');
             const options = positions.filter(p => p.type === 'option');
             
-            // 4. 批量查询股票价格和汇率（只查询股票和ETF）
-            const stockSymbols = stockPositions.map(p => p.symbol);
+            // 4. 并行刷新股票和期权数据
+            const refreshPromises = [];
             
-            if (stockSymbols.length === 0 && cashEquivalents.length === 0 && options.length === 0) {
-                // 没有任何持仓时显示空状态
+            // 4.1 刷新股票数据（现有逻辑）
+            if (stockSymbols.length > 0) {
+                // 为港股代码添加 .HK 后缀（如果还没有）
+                const querySymbols = stockSymbols.map(symbol => {
+                    // 港股代码判断：以数字开头且长度>=5，或者包含 .HK
+                    if (symbol.includes('.HK')) {
+                        return symbol; // 已经有 .HK 后缀
+                    } else if (/^\d{5,}/.test(symbol)) {
+                        // 港股代码通常以5位数字开头，添加 .HK 后缀
+                        return `${symbol}.HK`;
+                    }
+                    return symbol; // 美股代码保持不变
+                });
+                
+                refreshPromises.push(
+                    API.getBatchQuotes(querySymbols, true)
+                        .then(batchData => ({ type: 'stocks', data: batchData }))
+                );
+            }
+            
+            // 4.2 刷新期权数据（新增）
+            if (this.optionsRenderer && options.length > 0) {
+                refreshPromises.push(
+                    this.optionsRenderer.refreshOptionsData(forceRefresh)
+                        .then(() => ({ type: 'options', success: true }))
+                        .catch(error => ({ type: 'options', success: false, error }))
+                );
+            }
+            
+            if (refreshPromises.length === 0 && cashEquivalents.length === 0) {
+                // 没有任何需要刷新的持仓时显示空状态
                 this.renderEmptyState();
                 Renderer.showLoading(false);
                 this.isRefreshing = false;
                 return;
             }
-
-            // 为港股代码添加 .HK 后缀（如果还没有）
-            const querySymbols = stockSymbols.map(symbol => {
-                // 港股代码判断：以数字开头且长度>=5，或者包含 .HK
-                if (symbol.includes('.HK')) {
-                    return symbol; // 已经有 .HK 后缀
-                } else if (/^\d{5,}/.test(symbol)) {
-                    // 港股代码通常以5位数字开头，添加 .HK 后缀
-                    return `${symbol}.HK`;
-                }
-                return symbol; // 美股代码保持不变
-            });
             
-            const batchData = await API.getBatchQuotes(querySymbols, true);
+            // 并行执行所有刷新
+            const refreshResults = await Promise.allSettled(refreshPromises);
+            
+            // 提取股票数据结果
+            let batchData = { stocks: {}, forex_rates: {} };
+            for (const result of refreshResults) {
+                if (result.status === 'fulfilled' && result.value.type === 'stocks') {
+                    batchData = result.value.data;
+                    break;
+                }
+            }
             
             // 映射股价数据：将带 .HK 后缀的键映射回原始 symbol
             const mappedStocks = {};
