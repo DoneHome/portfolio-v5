@@ -54,29 +54,38 @@ class PortfolioApp {
             // 2. 获取本地缓存版本
             const localVersion = localStorage.getItem('portfolio_data_version') || '0';
             
+            console.log(`版本对比: 后端=${backendVersion}, 本地=${localVersion}`);
+            
             // 3. 如果后端版本更新，同步数据
             // 检查后端数据是否有效（有data_version字段说明后端正常）
             if (backendVersion && this.compareVersions(backendVersion, localVersion) > 0) {
+                console.log('检测到后端数据更新，开始同步...');
+                
                 // 同步持仓数据（即使为空也要清空本地，保持同步）
                 await this.db.clearPositions();
                 if (backendData.positions && backendData.positions.length > 0) {
                     for (const position of backendData.positions) {
                         await this.db.addOrUpdatePosition(position);
                     }
+                    console.log(`同步持仓数据: ${backendData.positions.length} 条记录`);
+                } else {
+                    console.log('后端持仓数据为空，已清空本地数据');
                 }
                 
                 // 同步目标配置
                 if (backendData.goals && Object.keys(backendData.goals).length > 0) {
                     // 这里可以添加目标配置的同步逻辑
+                    console.log('同步目标配置:', backendData.goals);
                 }
                 
                 // 更新本地版本号
                 localStorage.setItem('portfolio_data_version', backendVersion);
+                console.log('数据同步完成，更新本地版本号:', backendVersion);
                 
             } else if (!backendVersion) {
-                // 后端不可用，使用本地缓存数据
+                console.log('后端不可用，使用本地缓存数据');
             } else {
-                // 本地数据已是最新，无需同步
+                console.log('本地数据已是最新，无需同步');
             }
             
         } catch (error) {
