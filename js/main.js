@@ -258,11 +258,24 @@ class PortfolioApp {
             
             // 2. 从 IndexedDB 获取持仓数据（同步后的最新数据）
             const positions = await this.db.getPositions();
-            const symbols = positions.map(p => p.symbol);
             
-            // 3. 批量查询股票价格和汇率
-            if (symbols.length === 0) {
-                // 没有持仓时显示空状态
+            // 3. 分离不同类型的持仓
+            const stockPositions = positions.filter(p => p.type !== 'cash_equivalent' && p.type !== 'option');
+            const cashEquivalents = positions.filter(p => p.type === 'cash_equivalent');
+            const options = positions.filter(p => p.type === 'option');
+            
+            console.log('持仓分类:', {
+                total: positions.length,
+                stocks: stockPositions.length,
+                cashEquivalents: cashEquivalents.length,
+                options: options.length
+            });
+            
+            // 4. 批量查询股票价格和汇率（只查询股票和ETF）
+            const stockSymbols = stockPositions.map(p => p.symbol);
+            
+            if (stockSymbols.length === 0 && cashEquivalents.length === 0 && options.length === 0) {
+                // 没有任何持仓时显示空状态
                 this.renderEmptyState();
                 Renderer.showLoading(false);
                 this.isRefreshing = false;
@@ -270,7 +283,7 @@ class PortfolioApp {
             }
 
             // 为港股代码添加 .HK 后缀（如果还没有）
-            const querySymbols = symbols.map(symbol => {
+            const querySymbols = stockSymbols.map(symbol => {
                 // 港股代码判断：以数字开头且长度>=5，或者包含 .HK
                 if (symbol.includes('.HK')) {
                     return symbol; // 已经有 .HK 后缀
