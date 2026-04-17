@@ -2,9 +2,9 @@
 class PortfolioIndexedDB {
     constructor() {
         this.dbName = 'portfolio_v5_db';
-        this.dbVersion = 1;
+        this.dbVersion = 3;  // 增加版本号，强制触发升级（修改主键结构）
         this.db = null;
-        this.init();
+        // 注意：init() 是异步方法，需要在外部显式调用
     }
 
     // 初始化数据库
@@ -43,9 +43,17 @@ class PortfolioIndexedDB {
                 if (db.objectStoreNames.contains('cash_management')) {
                     db.deleteObjectStore('cash_management');
                 }
+                if (db.objectStoreNames.contains('goals')) {
+                    db.deleteObjectStore('goals');
+                }
+                if (db.objectStoreNames.contains('metadata')) {
+                    db.deleteObjectStore('metadata');
+                }
 
                 // 创建 positions 表（持仓汇总）
-                const positionsStore = db.createObjectStore('positions', { keyPath: ['symbol', 'type'] });
+                // 主键改为 [symbol, option_symbol] 以支持同一标的多个期权合约
+                // 对于非期权，option_symbol 为 null
+                const positionsStore = db.createObjectStore('positions', { keyPath: ['symbol', 'option_symbol'] });
                 positionsStore.createIndex('symbol', 'symbol', { unique: false });
                 positionsStore.createIndex('type', 'type', { unique: false });
                 positionsStore.createIndex('market', 'market', { unique: false });
@@ -71,6 +79,14 @@ class PortfolioIndexedDB {
 
                 // 创建 cash_management 表（现金管理）
                 const cashStore = db.createObjectStore('cash_management', { keyPath: 'id' });
+
+                // 创建 goals 表（目标配置）
+                const goalsStore = db.createObjectStore('goals', { keyPath: 'id' });
+                goalsStore.createIndex('updated_at', 'updated_at', { unique: false });
+
+                // 创建 metadata 表（元数据）
+                const metadataStore = db.createObjectStore('metadata', { keyPath: 'key' });
+                metadataStore.createIndex('updated_at', 'updated_at', { unique: false });
 
                 console.log('IndexedDB 表结构创建完成');
             };
@@ -173,17 +189,61 @@ class PortfolioIndexedDB {
                 return;
             }
 
-            const transaction = this.db.transaction([storeName], 'readwrite');
-            const store = transaction.objectStore(storeName);
-            const request = store.put(data);
+            try {
+                const transaction = this.db.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                
+                // 调试：检查要保存的数据
+                if (storeName === 'positions') {
+                    console.log('IndexedDB 保存数据 - 详细信息:', {
+                        symbol: data.symbol,
+                        option_symbol: data.option_symbol,
+                        type: data.type,
+                        keyPath: store.keyPath,
+                        // 检查键值是否有效
+                        symbolValid: typeof data.symbol === 'string' && data.symbol.trim() !== '',
+                        optionSymbolValid: data.option_symbol === '' || (typeof data.option_symbol === 'string' && data.option_symbol.trim() !== ''),
+                        // 完整的键值
+                        fullKey: [data.symbol, data.option_symbol],
+                        // 数据类型检查
+                        symbolType: typeof data.symbol,
+                        optionSymbolType: typeof data.option_symbol,
+                        // 原始数据（前几个字段）
+                        dataPreview: {
+                            symbol: data.symbol,
+                            name: data.name,
+                            market: data.market,
+                            type: data.type,
+                            shares: data.shares,
+                            cost_price: data.cost_price,
+                            currency: data.currency,
+                            option_symbol: data.option_symbol,
+                            option_details: data.option_details,
+                            created_at: data.created_at,
+                            updated_at: data.updated_at
+                        }
+                    });
+                }
+                
+                const request = store.put(data);
 
-            request.onsuccess = (event) => {
-                resolve(event.target.result);
-            };
+                request.onsuccess = (event) => {
+                    resolve(event.target.result);
+                };
 
-            request.onerror = (event) => {
-                reject(event.target.error);
-            };
+                request.onerror = (event) => {
+                    console.error(`数据保存失败: storeName=${storeName}, data=`, data, 'error=', event.target.error);
+                    reject(event.target.error);
+                };
+                
+                transaction.onerror = (event) => {
+                    console.error(`事务错误:`, event.target.error);
+                };
+                
+            } catch (error) {
+                console.error(`_put() 执行异常: storeName=${storeName}, data=`, data, 'error=', error);
+                reject(error);
+            }
         });
     }
 
@@ -214,11 +274,22 @@ class PortfolioIndexedDB {
         return await this._getAll('positions');
     }
 
-    async getPosition(symbol, type = 'equity') {
-        return await this._getByKey('positions', [symbol, type]);
+    async getPosition(symbol, optionSymbol = '') {
+        return await this._getByKey('positions', [symbol, optionSymbol]);
     }
 
     async addOrUpdatePosition(position) {
+        console.log('addOrUpdatePosition 开始处理:', { symbol: position.symbol, type: position.type });
+        
+        // 验证必要字段
+        if (!position.symbol || typeof position.symbol !== 'string' || position.symbol.trim() === '') {
+            throw new Error(`无效的 symbol: ${position.symbol}`);
+        }
+        
+        if (!position.type || typeof position.type !== 'string' || position.type.trim() === '') {
+            throw new Error(`无效的 type: ${position.type}`);
+        }
+        
         // 确保有更新时间戳
         if (!position.updated_at) {
             position.updated_at = new Date().toISOString();
@@ -226,12 +297,39 @@ class PortfolioIndexedDB {
         if (!position.created_at) {
             position.created_at = new Date().toISOString();
         }
+        
+        // 确保有 option_symbol 字段
+        // 对于期权：使用期权代码
+        // 对于非期权：使用空字符串 ''（IndexedDB 不接受 null 作为复合键的一部分）
+        if (position.type === 'option' && position.option_details && position.option_details.option_symbol) {
+            position.option_symbol = position.option_details.option_symbol;
+            // 验证期权代码
+            if (typeof position.option_symbol !== 'string' || position.option_symbol.trim() === '') {
+                throw new Error(`无效的 option_symbol: ${position.option_symbol}`);
+            }
+        } else {
+            // 非期权或没有 option_details，option_symbol 使用空字符串
+            // IndexedDB 的复合键不接受 null，但接受空字符串
+            position.option_symbol = '';
+        }
+        
+        console.log('addOrUpdatePosition 处理完成:', { 
+            symbol: position.symbol, 
+            type: position.type, 
+            option_symbol: position.option_symbol,
+            hasOptionDetails: !!position.option_details
+        });
 
         return await this._put('positions', position);
     }
 
-    async deletePosition(symbol, type = 'equity') {
-        return await this._delete('positions', [symbol, type]);
+    // addPosition 作为 addOrUpdatePosition 的别名，保持向后兼容
+    async addPosition(position) {
+        return await this.addOrUpdatePosition(position);
+    }
+
+    async deletePosition(symbol, optionSymbol = '') {
+        return await this._delete('positions', [symbol, optionSymbol]);
     }
 
     // ========== 交易记录 ==========
@@ -279,8 +377,14 @@ class PortfolioIndexedDB {
         // 确定持仓类型（默认为 equity）
         const type = transaction.type || 'equity';
         
+        // 对于期权，需要 option_symbol 作为主键的一部分
+        let optionSymbol = '';
+        if (type === 'option' && transaction.option_details) {
+            optionSymbol = transaction.option_details.option_symbol;
+        }
+        
         // 获取现有持仓
-        let position = await this.getPosition(symbol, type);
+        let position = await this.getPosition(symbol, optionSymbol);
         
         if (direction === 'buy') {
             if (position) {
@@ -296,6 +400,7 @@ class PortfolioIndexedDB {
                 // 新持仓
                 position = {
                     symbol,
+                    option_symbol: optionSymbol,  // 对于期权，这是主键的一部分
                     name: transaction.name || symbol,
                     market: symbol.includes('.HK') ? '港股' : '美股',
                     type,
@@ -303,6 +408,8 @@ class PortfolioIndexedDB {
                     cost_price: price,
                     currency,
                     sector: transaction.sector,
+                    option_details: transaction.option_details,
+                    cash_details: transaction.cash_details,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
                 };
@@ -315,7 +422,7 @@ class PortfolioIndexedDB {
                 
                 // 如果持仓为0，删除该记录
                 if (position.shares === 0) {
-                    await this.deletePosition(symbol, type);
+                    await this.deletePosition(symbol, optionSymbol);
                     return;
                 }
             } else {
@@ -336,7 +443,7 @@ class PortfolioIndexedDB {
         // 清空现有持仓
         const positions = await this.getPositions();
         for (const position of positions) {
-            await this.deletePosition(position.symbol, position.type);
+            await this.deletePosition(position.symbol, position.option_symbol || '');
         }
         
         // 获取所有交易记录
@@ -530,24 +637,59 @@ class PortfolioIndexedDB {
 
     // ========== 数据管理方法 ==========
 
+    // 清空指定表的数据
+    async clear(storeName) {
+        // 检查数据库是否已初始化
+        if (!this.db) {
+            await this.init();
+        }
+        
+        return new Promise((resolve, reject) => {
+            try {
+                const transaction = this.db.transaction([storeName], 'readwrite');
+                const store = transaction.objectStore(storeName);
+                
+                const request = store.clear();
+                
+                request.onsuccess = () => {
+                    resolve();
+                };
+                
+                request.onerror = (event) => {
+                    console.error(`清空表 ${storeName} 数据失败:`, event.target.error);
+                    reject(event.target.error);
+                };
+                
+                transaction.onerror = (event) => {
+                    console.error(`事务错误:`, event.target.error);
+                };
+                
+            } catch (error) {
+                console.error(`clear() 执行异常:`, error);
+                reject(error);
+            }
+        });
+    }
+
     // 清空所有持仓数据
     async clearPositions() {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['positions'], 'readwrite');
-            const store = transaction.objectStore('positions');
-            
-            const request = store.clear();
-            
-            request.onsuccess = () => {
-                console.log('持仓数据已清空');
-                resolve();
-            };
-            
-            request.onerror = (event) => {
-                console.error('清空持仓数据失败:', event.target.error);
-                reject(event.target.error);
-            };
-        });
+        return await this.clear('positions');
+    }
+
+    // 保存数据到指定表
+    async put(storeName, data) {
+        // 检查数据库是否已初始化
+        if (!this.db) {
+            await this.init();
+        }
+        
+        // 对于 positions 表，使用 addOrUpdatePosition 以确保数据完整性
+        if (storeName === 'positions') {
+            return await this.addOrUpdatePosition(data);
+        }
+        
+        // 其他表使用原始的 _put 方法
+        return await this._put(storeName, data);
     }
 
     // ========== 初始化示例数据 ==========
@@ -558,26 +700,26 @@ class PortfolioIndexedDB {
         // 初始化真实持仓数据
         const realPositions = [
             // 美股权益
-            { symbol: 'PDD', name: '拼多多', market: '美股', type: 'equity', shares: 200, cost_price: 109.77, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 30, cost_price: 379.17, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: 'PLTR', name: 'Palantir', market: '美股', type: 'equity', shares: 1, cost_price: 72.78, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: 'RKLB', name: 'Rocket Lab', market: '美股', type: 'equity', shares: 1, cost_price: 23.40, currency: 'USD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: 'DXYZ', name: 'Destiny Tech100', market: '美股', type: 'equity', shares: 1, cost_price: 69.20, currency: 'USD', sector: 'finance', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'PDD', name: '拼多多', market: '美股', type: 'equity', shares: 200, cost_price: 109.77, currency: 'USD', sector: 'tech', option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'MU', name: '美光科技', market: '美股', type: 'equity', shares: 30, cost_price: 379.17, currency: 'USD', sector: 'tech', option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'PLTR', name: 'Palantir', market: '美股', type: 'equity', shares: 1, cost_price: 72.78, currency: 'USD', sector: 'tech', option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'RKLB', name: 'Rocket Lab', market: '美股', type: 'equity', shares: 1, cost_price: 23.40, currency: 'USD', sector: 'tech', option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'DXYZ', name: 'Destiny Tech100', market: '美股', type: 'equity', shares: 1, cost_price: 69.20, currency: 'USD', sector: 'finance', option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // 港股权益
-            { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 2500, cost_price: 64.13, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 600, cost_price: 214.80, currency: 'HKD', sector: 'consumer', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: '03690.HK', name: '美团-W', market: '港股', type: 'equity', shares: 900, cost_price: 109.08, currency: 'HKD', sector: 'tech', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '00981.HK', name: '中芯国际', market: '港股', type: 'equity', shares: 2500, cost_price: 64.13, currency: 'HKD', sector: 'tech', option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '09992.HK', name: '泡泡玛特', market: '港股', type: 'equity', shares: 600, cost_price: 214.80, currency: 'HKD', sector: 'consumer', option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '03690.HK', name: '美团-W', market: '港股', type: 'equity', shares: 900, cost_price: 109.08, currency: 'HKD', sector: 'tech', option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // ETF
-            { symbol: 'VOO', name: '标普500ETF', market: '美股', type: 'etf', shares: 16.51, cost_price: 602.74, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: 'QQQ', name: '纳指100ETF', market: '美股', type: 'etf', shares: 16.94, cost_price: 585.75, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: '02800.HK', name: '盈富基金', market: '港股', type: 'etf', shares: 1000, cost_price: 23.89, currency: 'HKD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'VOO', name: '标普500ETF', market: '美股', type: 'etf', shares: 16.51, cost_price: 602.74, currency: 'USD', sector: null, option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: 'QQQ', name: '纳指100ETF', market: '美股', type: 'etf', shares: 16.94, cost_price: 585.75, currency: 'USD', sector: null, option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '02800.HK', name: '盈富基金', market: '港股', type: 'etf', shares: 1000, cost_price: 23.89, currency: 'HKD', sector: null, option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
             
             // 现金等价物
-            { symbol: '博时美元货币基金', name: '博时美元货币市场基金', market: '美股', type: 'cash_equivalent', shares: 51476, cost_price: 1, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: '易方达港元货币基金', name: '易方达（香港）港元货币市场基金', market: '港股', type: 'cash_equivalent', shares: 2273, cost_price: 1, currency: 'HKD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-            { symbol: '美元现金', name: '美元现金', market: '美股', type: 'cash_equivalent', shares: 3471.46, cost_price: 1, currency: 'USD', sector: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+            { symbol: '博时美元货币基金', name: '博时美元货币市场基金', market: '美股', type: 'cash_equivalent', shares: 51476, cost_price: 1, currency: 'USD', sector: null, option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '易方达港元货币基金', name: '易方达（香港）港元货币市场基金', market: '港股', type: 'cash_equivalent', shares: 2273, cost_price: 1, currency: 'HKD', sector: null, option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+            { symbol: '美元现金', name: '美元现金', market: '美股', type: 'cash_equivalent', shares: 3471.46, cost_price: 1, currency: 'USD', sector: null, option_symbol: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
         ];
         
         for (const position of realPositions) {

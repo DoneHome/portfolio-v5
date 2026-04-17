@@ -290,16 +290,35 @@
                         <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between cursor-pointer derivative-toggle">
                             <div class="flex items-center gap-3">
                                 <h3 class="text-sm font-medium text-gray-900">衍生品</h3>
-                                <span class="text-xs text-gray-400">(卖Put策略)</span>
+                                <span id="option-count" class="text-xs text-gray-400">(0只)</span>
                             </div>
                             <svg class="w-4 h-4 text-gray-400 derivative-arrow transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                         </div>
                         <div class="derivative-content">
-                            <div class="px-5 py-4 text-sm text-gray-500">
-                                暂无持仓
-                            </div>
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50/50">
+                                    <tr class="text-xs text-gray-500">
+                                        <th class="px-4 py-3 text-left font-medium">标的</th>
+                                        <th class="px-4 py-3 text-left font-medium">期权代码</th>
+                                        <th class="px-4 py-3 text-right font-medium">合约数</th>
+                                        <th class="px-4 py-3 text-right font-medium">行权价</th>
+                                        <th class="px-4 py-3 text-right font-medium">到期日</th>
+                                        <th class="px-4 py-3 text-right font-medium">权利金</th>
+                                        <th class="px-4 py-3 text-right font-medium">市值</th>
+                                        <th class="px-4 py-3 text-center font-medium">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="option-table-body" class="divide-y divide-gray-100">
+                                    <!-- 动态加载 -->
+                                    <tr>
+                                        <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                                            暂无期权持仓
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -697,11 +716,11 @@
 
     <!-- 脚本 -->
     <script src="js/api.js?v=11"></script>
-    <script src="js/portfolio-api.js?v=2"></script>
-    <script src="js/calculator-v2.js?v=12"></script>
-    <script src="js/renderer.js?v=11"></script>
-    <script src="js/indexeddb.js?v=11"></script>
-    <script src="js/github-backup.js?v=11"></script>
-    <script src="js/main.js?v=11"></script>
+    <script src="js/indexeddb.js?v=21"></script>
+    <script src="js/portfolio-api.js?v=6"></script>
+    <script src="js/calculator-v2.js?v=13"></script>
+    <script src="js/renderer.js?v=13"></script>
+    <script src="js/github-backup.js?v=13"></script>
+    <script src="js/main.js?v=14"></script>
 </body>
 </html>

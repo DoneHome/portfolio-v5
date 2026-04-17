@@ -28,6 +28,9 @@ class PortfolioCalculator {
             { symbol: '美元现金', name: '美元现金', market: '美股', type: 'cash_equivalent', shares: 3471.46, nav: 1.0, currency: 'USD' }
         ];
 
+        // 期权数据（从外部传入）
+        this.options = [];
+
         // 现金数据（从外部传入，不在此处硬编码）
         this.cash = null;
 
@@ -226,24 +229,76 @@ class PortfolioCalculator {
             });
         }
 
+        // 处理期权数据
+        const optionCalculations = (this.options || []).map(option => {
+            const currency = option.currency || 'USD';
+            let exchangeRate = 1;
+            if (currency === 'USD') {
+                exchangeRate = USDCNY;
+            } else if (currency === 'HKD') {
+                exchangeRate = HKDCNY;
+            }
+            
+            // 期权市值 = 合约数量 × 合约乘数 × 权利金
+            const contractMultiplier = option.option_details?.contract_multiplier || 100;
+            const premium = option.cost_price || 0; // 权利金（成本价）
+            const shares = option.shares || 0; // 合约数量
+            const marketValue = shares * contractMultiplier * premium; // 原始货币市值
+            const marketValueCNY = marketValue * exchangeRate;
+            
+            // 期权没有当前价格，使用成本价作为当前价格
+            const currentPrice = premium;
+            
+            // 期权盈亏为0（因为使用成本价作为当前价）
+            const costValueCNY = marketValueCNY;
+            const pnlAmountCNY = 0;
+            const pnlPercent = 0;
+            
+            return {
+                ...option,
+                currentPrice,
+                currency,
+                marketValue, // 原始货币市值（用于展示）
+                marketValueCNY, // 人民币市值（用于计算）
+                costValueCNY,
+                pnlAmountCNY,
+                pnlPercent,
+                todayChange: 0,
+                exchangeRate,
+                weight: totalHoldingsValueCNY > 0 ? (marketValueCNY / totalHoldingsValueCNY) * 100 : 0
+            };
+        });
+        
+        const optionStocks = optionCalculations
+            .sort((a, b) => b.marketValueCNY - a.marketValueCNY);
+        
+        // 期权总市值
+        const totalOptionValueCNY = optionCalculations.reduce((sum, opt) => sum + opt.marketValueCNY, 0);
+        
+        // 更新总资产（包含期权）
+        const totalAssetsWithOptionsCNY = totalAssetsCNY + totalOptionValueCNY;
+        
         return {
-            totalAssetsCNY,
+            totalAssetsCNY: totalAssetsWithOptionsCNY, // 包含期权的总资产
             totalStockValueCNY,
             totalCashEquivalentValueCNY,
-            totalPnlCNY,
-            totalPnlPercent,
-            positionRatio,
-            goalProgress,
+            totalOptionValueCNY,
+            totalPnlCNY: totalAssetsWithOptionsCNY - (this.initialAssets || totalAssetsWithOptionsCNY),
+            totalPnlPercent: this.initialAssets ? ((totalAssetsWithOptionsCNY - this.initialAssets) / this.initialAssets) * 100 : 0,
+            positionRatio: totalAssetsWithOptionsCNY > 0 ? (totalStockValueCNY / totalAssetsWithOptionsCNY) * 100 : 0,
+            goalProgress: (totalAssetsWithOptionsCNY / (this.threeYearGoal || 5000000)) * 100,
             equityValue,
             etfValue,
             equityStocks,
             etfStocks,
             cashEquivalentStocks,
+            optionStocks,
             opportunities,
             risks,
             equityCount: equityStocks.length,
             etfCount: etfStocks.length,
-            cashEquivalentCount: cashEquivalentStocks.length
+            cashEquivalentCount: cashEquivalentStocks.length,
+            optionCount: optionStocks.length
         };
     }
 }

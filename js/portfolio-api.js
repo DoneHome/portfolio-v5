@@ -41,16 +41,12 @@ class PortfolioAPI {
 
     async syncData() {
         try {
-            console.log('开始同步持仓数据...');
-            
             // 获取服务器数据
             const serverData = await this._request('/api/portfolio/positions');
             const serverVersion = serverData.data_version;
             
             // 对比版本号
             if (serverVersion !== this.localVersion) {
-                console.log(`数据版本变更: ${this.localVersion} -> ${serverVersion}`);
-                
                 // 更新本地数据
                 await this._updateLocalData(serverData);
                 this.localVersion = serverVersion;
@@ -82,29 +78,62 @@ class PortfolioAPI {
     }
 
     async _updateLocalData(serverData) {
-        // 更新 IndexedDB
-        const db = await this._getDatabase();
-        
-        // 清空旧数据
-        await db.clear('positions');
-        await db.clear('goals');
-        
-        // 保存持仓
-        for (const position of serverData.positions) {
-            await db.put('positions', position);
+        try {
+            // 更新 IndexedDB
+            const db = await this._getDatabase();
+            
+            // 清空旧数据
+            await db.clear('positions');
+            await db.clear('goals');
+            
+            // 保存持仓
+            for (const position of serverData.positions || []) {
+                // 为 IndexedDB 准备数据：提取 option_symbol 到顶层
+                const dbPosition = { ...position };
+                
+                // 对于期权，将 option_details.option_symbol 提取到顶层的 option_symbol 字段
+                if (dbPosition.type === 'option' && dbPosition.option_details && dbPosition.option_details.option_symbol) {
+                    dbPosition.option_symbol = dbPosition.option_details.option_symbol;
+                } else {
+                    // 非期权或期权代码为空，option_symbol 使用空字符串
+                    // IndexedDB 的复合键不接受 null，但接受空字符串
+                    dbPosition.option_symbol = '';
+                }
+                
+                // 调试：检查键值
+                console.log('保存持仓:', {
+                    symbol: dbPosition.symbol,
+                    option_symbol: dbPosition.option_symbol,
+                    type: dbPosition.type,
+                    hasOptionDetails: !!dbPosition.option_details
+                });
+                
+                await db.put('positions', dbPosition);
+            }
+            
+            // 保存目标配置
+            if (serverData.goals) {
+                // 为 goals 数据添加 id 字段，因为 goals 表的 keyPath 是 'id'
+                const goalsWithId = {
+                    id: 'current_goals',  // 固定 ID，只保存一份目标配置
+                    ...serverData.goals
+                };
+                await db.put('goals', goalsWithId);
+            }
+            
+            // 保存元数据
+            await db.put('metadata', {
+                key: 'data_version',
+                value: serverData.data_version,
+                updated_at: new Date().toISOString()
+            });
+            
+            console.log('本地数据已更新');
+            
+        } catch (error) {
+            console.error('_updateLocalData() 执行失败:', error);
+            throw error;
         }
-        
-        // 保存目标配置
-        await db.put('goals', serverData.goals);
-        
-        // 保存元数据
-        await db.put('metadata', {
-            key: 'data_version',
-            value: serverData.data_version,
-            updated_at: new Date().toISOString()
-        });
-        
-        console.log('本地数据已更新');
     }
 
     _dispatchDataUpdate(data) {
@@ -268,19 +297,19 @@ class PortfolioAPI {
 
     async _getDatabase() {
         // 复用现有的 IndexedDB 封装
-        if (typeof db !== 'undefined') {
-            return db;
+        if (typeof IndexedDB !== 'undefined' && IndexedDB.init) {
+            // IndexedDB 已经是实例，直接使用
+            return IndexedDB;
         }
         
-        // 如果 db 不存在，创建一个简单的封装
+        // 如果 IndexedDB 不存在，返回模拟对象（降级处理）
+        console.warn('IndexedDB 不可用，使用模拟存储');
         return {
             clear: async (storeName) => {
-                // 简单实现
-                console.log(`清空 ${storeName}`);
+                console.log(`模拟清空 ${storeName}`);
             },
             put: async (storeName, data) => {
-                // 简单实现
-                console.log(`保存到 ${storeName}:`, data);
+                console.log(`模拟保存到 ${storeName}:`, data);
             }
         };
     }

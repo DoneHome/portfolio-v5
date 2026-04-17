@@ -63,16 +63,19 @@ class PortfolioApp {
             console.log(`版本对比: 后端=${backendVersion}, 本地=${localVersion}`);
             
             // 3. 如果后端版本更新，同步数据
-            if (backendData.success && this.compareVersions(backendVersion, localVersion) > 0) {
+            // 检查后端数据是否有效（有data_version字段说明后端正常）
+            if (backendVersion && this.compareVersions(backendVersion, localVersion) > 0) {
                 console.log('检测到后端数据更新，开始同步...');
                 
-                // 同步持仓数据
+                // 同步持仓数据（即使为空也要清空本地，保持同步）
+                await this.db.clearPositions();
                 if (backendData.positions && backendData.positions.length > 0) {
-                    await this.db.clearPositions();
                     for (const position of backendData.positions) {
-                        await this.db.addPosition(position);
+                        await this.db.addOrUpdatePosition(position);
                     }
                     console.log(`同步持仓数据: ${backendData.positions.length} 条记录`);
+                } else {
+                    console.log('后端持仓数据为空，已清空本地数据');
                 }
                 
                 // 同步目标配置
@@ -85,7 +88,7 @@ class PortfolioApp {
                 localStorage.setItem('portfolio_data_version', backendVersion);
                 console.log('数据同步完成，更新本地版本号:', backendVersion);
                 
-            } else if (!backendData.success) {
+            } else if (!backendVersion) {
                 console.log('后端不可用，使用本地缓存数据');
             } else {
                 console.log('本地数据已是最新，无需同步');
@@ -266,7 +269,40 @@ class PortfolioApp {
                 return;
             }
 
-            const batchData = await API.getBatchQuotes(symbols, true);
+            // 为港股代码添加 .HK 后缀（如果还没有）
+            const querySymbols = symbols.map(symbol => {
+                // 港股代码判断：以数字开头且长度>=5，或者包含 .HK
+                if (symbol.includes('.HK')) {
+                    return symbol; // 已经有 .HK 后缀
+                } else if (/^\d{5,}/.test(symbol)) {
+                    // 港股代码通常以5位数字开头，添加 .HK 后缀
+                    return `${symbol}.HK`;
+                }
+                return symbol; // 美股代码保持不变
+            });
+            
+            console.log('查询股价的代码:', { symbols, querySymbols });
+            
+            const batchData = await API.getBatchQuotes(querySymbols, true);
+            
+            // 映射股价数据：将带 .HK 后缀的键映射回原始 symbol
+            const mappedStocks = {};
+            for (let i = 0; i < symbols.length; i++) {
+                const originalSymbol = symbols[i];
+                const querySymbol = querySymbols[i];
+                
+                if (batchData.stocks && batchData.stocks[querySymbol]) {
+                    mappedStocks[originalSymbol] = batchData.stocks[querySymbol];
+                } else if (batchData.errors && batchData.errors[querySymbol]) {
+                    console.warn(`股票 ${originalSymbol} (查询为 ${querySymbol}) 获取失败:`, batchData.errors[querySymbol]);
+                }
+            }
+            
+            // 使用映射后的股价数据
+            const stockDataForCalculator = {
+                ...batchData,
+                stocks: mappedStocks
+            };
             
             if (batchData.errors && Object.keys(batchData.errors).length > 0) {
                 console.warn('部分股票查询失败:', batchData.errors);
@@ -280,8 +316,9 @@ class PortfolioApp {
             
             // 6. 计算所有指标
             const calculator = new PortfolioCalculator();
-            calculator.positions = positions.filter(p => p.type !== 'cash_equivalent'); // 股票和ETF（排除现金等价物）
+            calculator.positions = positions.filter(p => p.type !== 'cash_equivalent' && p.type !== 'option'); // 股票和ETF（排除现金等价物和期权）
             calculator.cashEquivalents = positions.filter(p => p.type === 'cash_equivalent'); // 现金等价物
+            calculator.options = positions.filter(p => p.type === 'option'); // 期权
             console.log('DEBUG: Cash equivalents from DB:', calculator.cashEquivalents);
             calculator.cash = {
                 total: cash.reserve_amount + cash.investment_amount + cash.emergency_amount,
@@ -296,7 +333,7 @@ class PortfolioApp {
             calculator.initialAssets = 1082990; // 2026年年初资产
             calculator.threeYearGoal = 5000000; // 从数据库获取或使用默认值
             
-            const calculatedData = calculator.calculateAll(batchData.stocks, forexRates);
+            const calculatedData = calculator.calculateAll(stockDataForCalculator.stocks, forexRates);
             console.log('DEBUG: Calculated cashEquivalents:', calculatedData.cashEquivalentStocks);
             
             // 合并现金数据（从数据库获取的现金 + 现金等价物计算值）
@@ -357,9 +394,18 @@ class PortfolioApp {
         this.filterByMarket(this.currentMarketFilter === 'all' ? 'all' : 
                            this.currentMarketFilter === 'us' ? '美股' : '港股');
         
+        // 渲染期权表格
+        Renderer.renderOptionTable(data.optionStocks || []);
+        
         // 渲染机会与风险
         Renderer.renderOpportunities(data.opportunities);
         Renderer.renderRisks(data.risks);
+        
+        // 更新期权计数
+        const optionCountEl = document.getElementById('option-count');
+        if (optionCountEl) {
+            optionCountEl.textContent = `(${data.optionCount || 0}只)`;
+        }
     }
 
     // 渲染空状态（无持仓时）
@@ -767,7 +813,14 @@ class PortfolioApp {
         
         // 获取股票信息
         let stockName = symbol;
-        let market = symbol.includes('.HK') ? 'HK' : 'US';
+        // 港股代码判断：以数字开头且长度>=5，或者包含 .HK
+        let market = 'US';
+        if (symbol.includes('.HK')) {
+            market = 'HK';
+        } else if (/^\d{5,}/.test(symbol)) {
+            // 港股代码通常以5位数字开头
+            market = 'HK';
+        }
         
         try {
             const quote = await API.getStockQuote(symbol);
@@ -848,7 +901,14 @@ class PortfolioApp {
         
         // 获取标的股票信息
         let stockName = symbol;
-        let market = symbol.includes('.HK') ? 'HK' : 'US';
+        // 港股代码判断：以数字开头且长度>=5，或者包含 .HK
+        let market = 'US';
+        if (symbol.includes('.HK')) {
+            market = 'HK';
+        } else if (/^\d{5,}/.test(symbol)) {
+            // 港股代码通常以5位数字开头
+            market = 'HK';
+        }
         
         try {
             const quote = await API.getStockQuote(symbol);
@@ -1033,4 +1093,4 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('PortfolioApp 初始化失败:', error);
         alert('应用初始化失败: ' + error.message);
     }
-});
+});// Cache bust: 1776270002

@@ -161,6 +161,10 @@ class PortfolioRenderer {
         if (cashEquivalentCount) {
             cashEquivalentCount.textContent = `(${data.cashEquivalentCount || 0}只)`;
         }
+        const optionCountEl = document.getElementById('option-count');
+        if (optionCountEl) {
+            optionCountEl.textContent = `(${data.optionCount || 0}只)`;
+        }
 
         // 现金管理
         document.getElementById('cash-total').textContent = this.formatCurrency(data.cash.total);
@@ -294,6 +298,94 @@ class PortfolioRenderer {
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">基金详情</a>
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">交易历史</a>
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">定投设置</a>
+                                <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">市场分析</a>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // 添加快速加仓事件
+        this._attachQuickAddEvents();
+    }
+
+    // 渲染期权表格
+    renderOptionTable(stocks) {
+        const tbody = document.getElementById('option-table-body');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        if (!stocks || stocks.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="px-4 py-8 text-center text-gray-400">
+                        暂无期权持仓
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        stocks.forEach(option => {
+            const weight = option.weight || 0;
+            const optionDetails = option.option_details || {};
+            const optionSymbol = optionDetails.option_symbol || option.symbol;
+            const strikePrice = optionDetails.strike_price || 0;
+            const expiryDate = optionDetails.expiry_date || '';
+            const optionType = optionDetails.option_type || 'call';
+            const contractMultiplier = optionDetails.contract_multiplier || 100;
+            
+            // 期权市值 = 合约数量 × 合约乘数 × 权利金
+            const marketValue = (option.shares || 0) * contractMultiplier * (option.cost_price || 0);
+            const marketValueDisplay = option.currency === 'USD' 
+                ? `$${marketValue.toFixed(2)}`
+                : option.currency === 'HKD'
+                ? `HK${marketValue.toFixed(2)}`
+                : this.formatCurrency(marketValue);
+            
+            const row = document.createElement('tr');
+            row.className = 'hover:bg-gray-50/50';
+            row.innerHTML = `
+                <td class="px-4 py-3">
+                    <div>
+                        <p class="font-medium text-gray-900">${option.name}</p>
+                        <p class="text-xs text-gray-400">${option.symbol}</p>
+                    </div>
+                </td>
+                <td class="px-4 py-3">
+                    <div>
+                        <p class="font-medium text-gray-900">${optionSymbol}</p>
+                        <p class="text-xs text-gray-400">${optionType === 'call' ? '认购' : '认沽'}</p>
+                    </div>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <span class="font-medium text-gray-900">${option.shares || 0}</span>
+                    <span class="text-xs text-gray-400">张</span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <span class="text-gray-600">$${strikePrice.toFixed(2)}</span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <span class="text-gray-900">${expiryDate}</span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <span class="text-gray-900 font-medium">$${(option.cost_price || 0).toFixed(2)}</span>
+                </td>
+                <td class="px-4 py-3 text-right">
+                    <span class="font-medium text-gray-900">${marketValueDisplay}</span>
+                </td>
+                <td class="px-4 py-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                        <button class="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs hover:bg-green-200 transition-colors quick-add-btn" data-symbol="${option.symbol}" title="快速加仓">+</button>
+                        <div class="menu-container relative">
+                            <button class="text-gray-400 hover:text-gray-600 text-lg px-1 menu-trigger">⋯</button>
+                            <div class="menu-dropdown absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 hidden group-hover:block hover:block">
+                                <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">期权详情</a>
+                                <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">交易历史</a>
+                                <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">希腊字母</a>
                                 <a href="#" class="block px-3 py-2 text-xs text-gray-700 hover:bg-gray-50">市场分析</a>
                             </div>
                         </div>
