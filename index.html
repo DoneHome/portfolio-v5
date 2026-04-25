@@ -216,14 +216,7 @@
                                     <button id="filter-us" class="px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-full transition-colors">美股</button>
                                     <button id="filter-hk" class="px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100 rounded-full transition-colors">港股</button>
                                 </div>
-                                <div class="w-px h-4 bg-gray-200"></div>
-                                <!-- 排序 -->
-                                <select id="sort-select" class="text-xs text-gray-600 bg-white border border-gray-200 rounded-full px-2.5 py-1 focus:outline-none">
-                                    <option value="weight">占比</option>
-                                    <option value="pnl">盈亏</option>
-                                    <option value="pnlAmount">盈亏金额</option>
-                                    <option value="today">今日涨跌</option>
-                                </select>
+
                             </div>
                         </div>
                         <table class="w-full text-sm">
@@ -321,41 +314,31 @@
                         </div>
                     </div>
 
-                    <!-- 期权持仓（新版） -->
+                    <!-- 期权持仓（新版 v2：核心7列 + 详情面板）-->
                     <div class="section bg-white rounded-2xl shadow-sm overflow-hidden" id="options-section">
                         <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <h2 class="text-sm font-medium text-gray-900">期权持仓</h2>
-                                <span id="options-count" class="text-xs text-gray-400">(0个)</span>
+                                <span id="options-count" class="text-xs text-gray-400">(--只)</span>
                             </div>
-                            <!-- 移除独立刷新按钮，与页面顶部刷新按钮共用 -->
-                        
+                        </div>
+
                         <div class="table-container overflow-x-auto">
                             <table id="options-table" class="data-table w-full text-sm">
                                 <thead class="bg-gray-50/50">
                                     <tr class="text-xs text-gray-500">
-                                        <th class="px-4 py-3 text-left font-medium">标的</th>
-                                        <th class="px-4 py-3 text-left font-medium">期权代码</th>
+                                        <th class="px-4 py-3 text-left font-medium">标的/期权代码</th>
                                         <th class="px-4 py-3 text-left font-medium">方向</th>
-                                        <th class="px-4 py-3 text-right font-medium">合约数</th>
-                                        <th class="px-4 py-3 text-right font-medium">行权价</th>
-                                        <th class="px-4 py-3 text-right font-medium">开仓权利金</th>
-                                        <th class="px-4 py-3 text-right font-medium">当前权利金</th>
-                                        <th class="px-4 py-3 text-right font-medium">当前股价</th>
-                                        <th class="px-4 py-3 text-right font-medium">价差(%)</th>
+                                        <th class="px-4 py-3 text-left font-medium">价差(%)</th>
                                         <th class="px-4 py-3 text-left font-medium">虚实状态</th>
-                                        <th class="px-4 py-3 text-right font-medium">距到期天数</th>
-                                        <th class="px-4 py-3 text-right font-medium">盈亏平衡点</th>
-                                        <th class="px-4 py-3 text-right font-medium">浮动盈亏</th>
-                                        <th class="px-4 py-3 text-right font-medium">市值</th>
+                                        <th class="px-4 py-3 text-left font-medium">浮动盈亏</th>
+                                        <th class="px-4 py-3 text-left font-medium">距到期</th>
+                                        <th class="px-4 py-3 text-left font-medium">当前权利金</th>
                                     </tr>
                                 </thead>
                                 <tbody id="options-table-body" class="divide-y divide-gray-100">
-                                    <!-- 动态填充 -->
                                     <tr>
-                                        <td colspan="14" class="px-4 py-8 text-center text-gray-400">
-                                            加载中...
-                                        </td>
+                                        <td colspan="8" class="px-4 py-8 text-center text-gray-400">加载中...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -365,17 +348,13 @@
                             <div class="flex justify-between items-center">
                                 <div class="summary flex gap-6">
                                     <span class="text-xs text-gray-600">
-                                        期权总市值: <span id="options-total-value" class="value font-medium">0</span> CNY
+                                        期权总市值: <span id="options-total-value" class="value font-medium">0</span> USD
                                     </span>
                                     <span class="text-xs text-gray-600">
-                                        总浮动盈亏: <span id="options-total-pnl" class="value font-medium">0</span> CNY
+                                        总浮动盈亏: <span id="options-total-pnl" class="value font-medium">0</span> USD
                                     </span>
-                                    <span class="text-xs text-gray-600">
-                                        持仓数量: <span id="options-count" class="value font-medium">0</span> 个
-                                    </span>
-                                </div>
-                                <div class="controls flex items-center gap-4">
-                                    <span class="last-updated text-xs text-gray-500">
+                                    <span class="text-xs text-gray-300 mx-3">|</span>
+                                    <span class="text-xs text-gray-400">
                                         最后更新: <span id="options-last-updated">-</span>
                                     </span>
                                 </div>

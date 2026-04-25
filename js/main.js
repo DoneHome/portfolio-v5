@@ -173,14 +173,14 @@ class PortfolioApp {
             filterUs.addEventListener('click', () => {
                 this.currentMarketFilter = 'us';
                 this.updateFilterButtons('us');
-                this.filterByMarket('美股');
+                this.filterByMarket('US');
             });
         }
         if (filterHk) {
             filterHk.addEventListener('click', () => {
                 this.currentMarketFilter = 'hk';
                 this.updateFilterButtons('hk');
-                this.filterByMarket('港股');
+                this.filterByMarket('HK');
             });
         }
 
@@ -293,19 +293,17 @@ class PortfolioApp {
             const refreshPromises = [];
             
             // 4.1 刷新股票数据（现有逻辑）
+            const stockSymbols = stockPositions.map(p => p.symbol);
+            const querySymbols = stockSymbols.map(symbol => {
+                if (symbol.includes('.HK')) {
+                    return symbol;
+                } else if (/^\d{5,}/.test(symbol)) {
+                    return `${symbol}.HK`;
+                }
+                return symbol;
+            });
+            
             if (stockSymbols.length > 0) {
-                // 为港股代码添加 .HK 后缀（如果还没有）
-                const querySymbols = stockSymbols.map(symbol => {
-                    // 港股代码判断：以数字开头且长度>=5，或者包含 .HK
-                    if (symbol.includes('.HK')) {
-                        return symbol; // 已经有 .HK 后缀
-                    } else if (/^\d{5,}/.test(symbol)) {
-                        // 港股代码通常以5位数字开头，添加 .HK 后缀
-                        return `${symbol}.HK`;
-                    }
-                    return symbol; // 美股代码保持不变
-                });
-                
                 refreshPromises.push(
                     API.getBatchQuotes(querySymbols, true)
                         .then(batchData => ({ type: 'stocks', data: batchData }))
